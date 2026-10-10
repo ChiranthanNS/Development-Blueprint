@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Event Newsletter Studio"
+description = "A private, session-based workspace for faculty to extract event details from PDFs, DOCX files, and images, review and classify events, then create a polished PDF newsletter."
+version = "1.0.0"
+id = "artifacts/event-newsletter"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25819
+
+[services.development]
+run = "pnpm --filter @workspace/event-newsletter run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/event-newsletter", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/event-newsletter/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25819"
+BASE_PATH = "/"

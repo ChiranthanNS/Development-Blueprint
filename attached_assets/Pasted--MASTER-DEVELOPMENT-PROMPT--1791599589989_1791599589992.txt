@@ -1,0 +1,2469 @@
+============================================================
+MASTER DEVELOPMENT PROMPT
+============================================================
+
+PROJECT TITLE:
+Automated Event Classification and Newsletter PDF Generator
+
+============================================================
+ROLE
+============================================================
+
+You are an expert full-stack software engineer, Python developer,
+document-processing engineer, OCR/NLP engineer, UI/UX designer,
+PDF-generation engineer, and testing engineer.
+
+Build the COMPLETE, WORKING, production-quality mini-project
+described below.
+
+This is NOT a request for a prototype, mockup, static webpage,
+fake dashboard, or partially implemented demo.
+
+Every major feature specified below must actually work.
+
+Do not create placeholder buttons that do nothing.
+Do not use fake event data for the actual workflow.
+Do not stop after creating the frontend.
+Implement the complete end-to-end system.
+
+============================================================
+1. PROJECT BACKGROUND
+============================================================
+
+Faculty members are responsible for preparing departmental or
+institutional newsletters containing information about events
+conducted during an academic period.
+
+Event information is usually available in different files such as:
+
+- PDF documents
+- Word documents
+- Event posters
+- Scanned documents
+- Images
+- Documents containing event photographs and descriptions
+
+These files may contain:
+
+- Event name
+- Event description
+- Date
+- Time
+- Venue
+- Organizer
+- Department
+- Club/Chapter
+- Participant information
+- Event photographs
+- Other event-related information
+
+Currently, the faculty member manually reads these files,
+identifies the type of every event, copies information and
+photographs, organizes events category-wise, counts the events,
+creates charts, and finally prepares the newsletter/report.
+
+This is repetitive, time-consuming, and prone to errors.
+
+============================================================
+2. PROJECT OBJECTIVE
+============================================================
+
+Develop a web-based application that automates this workflow.
+
+The application should allow a faculty member to upload one or
+more files containing event information.
+
+The application must:
+
+1. Extract text from uploaded files.
+2. Extract photographs/images.
+3. Detect individual events.
+4. Extract event information.
+5. Classify each event using keyword-based analysis.
+6. Calculate category scores.
+7. Calculate classification confidence.
+8. Identify ambiguous events.
+9. Optionally use an AI/NLP API only as a fallback.
+10. Display all classified events for human verification.
+11. Allow events to be moved between categories using REAL
+    drag-and-drop.
+12. Allow events to be reordered.
+13. Allow event information to be edited.
+14. Allow photographs to be replaced, removed, or added.
+15. Allow events to be added manually.
+16. Allow events to be deleted.
+17. Provide search and filtering.
+18. Generate category-wise statistics.
+19. Generate a pie chart.
+20. Generate a professional PDF newsletter/report.
+21. Allow the user to preview and download the PDF.
+22. Clear temporary session data when the project ends.
+
+============================================================
+3. CORE WORKFLOW
+============================================================
+
+The complete workflow must be:
+
+UPLOAD
+   ↓
+FILE VALIDATION
+   ↓
+TEXT + IMAGE EXTRACTION
+   ↓
+OCR IF REQUIRED
+   ↓
+EVENT DETECTION
+   ↓
+EVENT INFORMATION EXTRACTION
+   ↓
+KEYWORD ANALYSIS
+   ↓
+CATEGORY SCORING
+   ↓
+CONFIDENCE CALCULATION
+   ↓
+OPTIONAL AI FALLBACK FOR AMBIGUOUS EVENTS
+   ↓
+REVIEW & ARRANGE
+   ↓
+EDIT / DRAG / DROP / REORDER
+   ↓
+FINAL VALIDATION
+   ↓
+STATISTICS + PIE CHART
+   ↓
+PDF GENERATION
+   ↓
+PDF PREVIEW
+   ↓
+DOWNLOAD PDF
+   ↓
+START NEW PROJECT / CLEAR SESSION
+
+============================================================
+4. IMPORTANT: NO PERMANENT DATABASE
+============================================================
+
+The project does NOT require a permanent database.
+
+Do NOT add:
+
+- Supabase
+- Firebase
+- MySQL
+- PostgreSQL
+- MongoDB
+
+unless absolutely required by a technical limitation.
+
+The intended workflow is temporary:
+
+Upload
+→ Process
+→ Review
+→ Generate PDF
+→ Download
+→ Clear session
+
+Uploaded information should be stored only temporarily during
+the current session.
+
+Do not permanently store institutional event information.
+
+Do not require:
+
+- User login
+- Registration
+- Authentication
+- Admin accounts
+- User profiles
+
+============================================================
+5. SUPPORTED INPUT FILES
+============================================================
+
+The application should support:
+
+1. PDF
+2. DOCX
+3. JPG
+4. JPEG
+5. PNG
+
+Allow multiple files to be uploaded simultaneously.
+
+Create a modern drag-and-drop upload interface.
+
+Example:
+
+------------------------------------------------
+       EVENT DOCUMENT UPLOADER
+------------------------------------------------
+
+Drag & Drop Files Here
+
+OR
+
+[ Browse Files ]
+
+Supported:
+PDF • DOCX • JPG • JPEG • PNG
+
+------------------------------------------------
+
+After uploading, display:
+
+- File name
+- File type
+- File size
+- Upload status
+- Remove button
+
+Buttons:
+
+[ Clear All ]
+[ Analyze Events ]
+
+============================================================
+6. FLEXIBLE DOCUMENT FORMAT
+============================================================
+
+Do NOT assume that every uploaded file follows the same layout.
+
+The application must handle documents where:
+
+- Event name is at the top
+- Event name is inside a heading
+- Event information is in paragraphs
+- Date appears before/after description
+- Photograph appears before/after text
+- Multiple events exist on one page
+- One event spans multiple pages
+- Events are separated by headings
+- Events are separated by whitespace
+- Events are separated by numbering
+- Events appear in posters
+- Documents contain scanned pages
+
+Use multiple signals to detect events:
+
+- Headings
+- Font/paragraph structure where available
+- Dates
+- Numbering
+- Page boundaries
+- Repeated formatting
+- Paragraph boundaries
+- Event-related keywords
+- Image proximity
+- Text proximity
+- Document structure
+
+Do NOT treat an entire document as one event if it clearly
+contains multiple events.
+
+============================================================
+7. DOCUMENT TEXT EXTRACTION
+============================================================
+
+For PDF:
+
+- Extract text using PyMuPDF/fitz or another reliable library.
+- Preserve page numbers.
+- Extract embedded images where possible.
+- Preserve reading order as much as reasonably possible.
+
+For DOCX:
+
+- Extract paragraphs.
+- Extract headings.
+- Extract tables if present.
+- Extract embedded images.
+- Preserve document order.
+
+For standalone images:
+
+- Use OCR.
+- Extract event-related text.
+- Treat the original image as a possible event photograph.
+
+============================================================
+8. OCR
+============================================================
+
+Use free/open-source OCR where practical.
+
+Preferred:
+Tesseract OCR.
+
+OCR should be used when:
+
+- PDF contains scanned pages
+- Image contains event text
+- Normal PDF text extraction returns little/no text
+- Document is image-based
+
+If OCR fails:
+
+Do not crash.
+
+Show:
+
+"Text could not be completely extracted from this file.
+Please review the detected event information manually."
+
+Allow the user to continue where possible.
+
+============================================================
+9. EVENT DETECTION
+============================================================
+
+The system must identify individual events.
+
+For every detected event create a structured internal object.
+
+Example:
+
+{
+    "id": "...",
+    "event_name": "...",
+    "description": "...",
+    "date": "...",
+    "time": "...",
+    "venue": "...",
+    "organizer": "...",
+    "department": "...",
+    "club": "...",
+    "participants": "...",
+    "team_size": "...",
+    "images": [],
+    "category": "...",
+    "confidence": 0,
+    "classification_source": "keyword",
+    "needs_review": false
+}
+
+If information is not available:
+
+Leave it blank.
+
+NEVER invent information.
+
+============================================================
+10. EVENT INFORMATION EXTRACTION
+============================================================
+
+Extract, where available:
+
+Required:
+
+- Event Name
+- Description
+- Category
+- Event Photograph(s)
+
+Optional:
+
+- Date
+- Time
+- Venue
+- Organizer
+- Department
+- Club/Chapter
+- Participants
+- Team Size
+- Registration information
+- Other relevant details
+
+The system must preserve the association between:
+
+EVENT
++
+DESCRIPTION
++
+DATE
++
+VENUE
++
+ORGANIZER
++
+PHOTOGRAPHS
+
+These must remain associated with the correct event throughout
+the entire application.
+
+============================================================
+11. MULTIPLE PHOTOGRAPHS PER EVENT
+============================================================
+
+An event may contain multiple photographs.
+
+Support:
+
+- One event → one photo
+- One event → multiple photos
+- No photo
+
+Example:
+
+Event:
+"AI Workshop"
+
+Images:
+Photo 1
+Photo 2
+Photo 3
+
+The review interface should allow:
+
+[ Add Photo ]
+[ Replace Photo ]
+[ Remove Photo ]
+
+The PDF generator must support multiple photos.
+
+Use an attractive layout such as:
+
+- Single large image
+- Two-image grid
+- Three-image gallery
+
+depending on the number of images.
+
+Maintain image aspect ratio.
+
+Never stretch images.
+
+============================================================
+12. DEFAULT EVENT CATEGORIES
+============================================================
+
+The default categories must be:
+
+1. Workshop
+2. Hackathon
+3. Codathon
+4. Outreach Activity
+5. Technical Event
+6. Seminar / Guest Lecture
+7. Competition
+8. Other
+
+These categories must NOT be hard-coded throughout the application.
+
+Store them in a configuration system.
+
+============================================================
+13. CUSTOM CATEGORY MANAGEMENT
+============================================================
+
+Allow categories to be modified easily.
+
+At minimum, provide configuration support for:
+
+- Add category
+- Remove category
+- Rename category
+
+If implementing a UI for category management is practical,
+provide:
+
+[ Manage Categories ]
+
+Example:
+
+------------------------------------------------
+Categories
+------------------------------------------------
+
+Workshop
+Hackathon
+Codathon
+Outreach Activity
+Technical Event
+Seminar / Guest Lecture
+Competition
+Other
+
+[ + Add Category ]
+
+------------------------------------------------
+
+Any category changes must be reflected in:
+
+- Classification
+- Review screen
+- Statistics
+- Pie chart
+- PDF
+
+============================================================
+14. KEYWORD-BASED CLASSIFICATION
+============================================================
+
+KEYWORD-BASED CLASSIFICATION IS THE PRIMARY CLASSIFICATION
+METHOD.
+
+Do NOT make AI the primary dependency.
+
+Create configurable keyword dictionaries.
+
+Example:
+
+WORKSHOP:
+
+workshop
+training
+hands-on
+practical session
+skill development
+learning session
+training program
+tutorial
+masterclass
+training workshop
+
+HACKATHON:
+
+hackathon
+prototype
+build
+innovation challenge
+team challenge
+solution development
+product development
+problem solving
+buildathon
+
+CODATHON:
+
+codathon
+coding contest
+coding competition
+programming contest
+competitive programming
+coding challenge
+algorithm challenge
+programming challenge
+
+OUTREACH:
+
+outreach
+awareness
+community
+school visit
+social service
+rural development
+awareness campaign
+community service
+public awareness
+
+TECHNICAL EVENT:
+
+technical event
+technical session
+technology
+technical talk
+technology session
+technical workshop
+
+SEMINAR / GUEST LECTURE:
+
+seminar
+guest lecture
+expert talk
+invited talk
+keynote
+lecture
+industry talk
+expert session
+
+COMPETITION:
+
+competition
+contest
+challenge
+quiz
+championship
+technical competition
+
+OTHER:
+
+Used when no meaningful category can be determined.
+
+============================================================
+15. KEYWORD MANAGEMENT
+============================================================
+
+Keyword lists and weights must be configurable.
+
+Preferably provide a UI:
+
+[ Manage Keywords ]
+
+Example:
+
+Category:
+Hackathon
+
+Keyword                  Weight
+--------------------------------
+hackathon                   5
+prototype                   3
+team challenge              3
+innovation challenge        3
+build                       2
+
+[ + Add Keyword ]
+
+Allow:
+
+- Add keyword
+- Delete keyword
+- Change weight
+
+Do not require editing Python source code for normal keyword
+configuration.
+
+============================================================
+16. KEYWORD NORMALIZATION
+============================================================
+
+Before classification:
+
+- Convert text to lowercase
+- Normalize whitespace
+- Remove unnecessary punctuation
+- Handle singular/plural where practical
+- Support multi-word phrases
+- Avoid accidental duplicate scoring
+- Match meaningful phrases
+- Ignore irrelevant common words
+
+Example:
+
+"Hands-On Workshop"
+
+should match:
+
+"hands-on"
+and
+"workshop"
+
+============================================================
+17. KEYWORD WEIGHTING
+============================================================
+
+Use weighted keyword scoring.
+
+Example:
+
+"hackathon" = 5
+"prototype" = 3
+"team challenge" = 3
+"challenge" = 1
+
+"workshop" = 5
+"hands-on" = 2
+"training" = 3
+
+The category score should be:
+
+category_score =
+sum of matching keyword weights
+
+Rank categories by score.
+
+============================================================
+18. CLASSIFICATION EXAMPLE
+============================================================
+
+Input:
+
+Event:
+"AI Innovation Challenge 2026"
+
+Description:
+
+"Students formed teams and developed working prototypes using
+artificial intelligence during an 8-hour challenge."
+
+Detected keywords:
+
+teams
+prototype
+challenge
+innovation challenge
+
+Possible scores:
+
+Hackathon:
+innovation challenge = +3
+prototype = +3
+team = +1
+challenge = +1
+
+Codathon:
+0
+
+Workshop:
+0
+
+Expected:
+
+Category:
+Hackathon
+
+============================================================
+19. CLASSIFICATION CONFIDENCE
+============================================================
+
+Calculate a confidence score.
+
+Example:
+
+Hackathon
+Score: 8
+Confidence: 91%
+
+Show confidence on event cards.
+
+Suggested visual labels:
+
+HIGH CONFIDENCE
+MEDIUM CONFIDENCE
+LOW CONFIDENCE
+
+For example:
+
+92% → High
+67% → Medium
+42% → Low
+
+Thresholds must be configurable.
+
+============================================================
+20. AMBIGUOUS CLASSIFICATION
+============================================================
+
+If two or more categories have similar scores, do NOT blindly
+select a category.
+
+Example:
+
+Hackathon = 3
+Codathon = 3
+
+Show:
+
+NEEDS REVIEW
+
+Suggested categories:
+
+Hackathon
+Codathon
+
+The faculty must be able to select the correct category.
+
+============================================================
+21. OPTIONAL AI/NLP FALLBACK
+============================================================
+
+AI must be OPTIONAL.
+
+The application must work completely without an AI API.
+
+If an API key is available, AI may be used only when:
+
+- Keyword scores are too close
+- No category has sufficient score
+- Very little relevant information exists
+- Classification confidence is below the configured threshold
+
+Do NOT send all files unnecessarily to the AI API.
+
+Send only relevant event text.
+
+Expected response:
+
+{
+    "category": "Hackathon",
+    "confidence": 0.86,
+    "reason": "The event involves teams developing prototypes
+                as part of a challenge."
+}
+
+If AI API key is missing:
+
+Continue using keyword classification.
+
+Never block the application.
+
+============================================================
+22. GEMINI API
+============================================================
+
+If Gemini API is implemented:
+
+Use environment variable:
+
+GEMINI_API_KEY=
+
+Never hard-code the API key.
+
+Create:
+
+.env.example
+
+Example:
+
+GEMINI_API_KEY=your_api_key_here
+
+Add .env to .gitignore.
+
+The project must work even when the API key is absent.
+
+============================================================
+23. REVIEW & ARRANGE PAGE
+============================================================
+
+After processing, display a dedicated Review & Arrange page.
+
+This is one of the most important pages.
+
+Display events as cards.
+
+Each event card should contain:
+
+- Event photo(s)
+- Event name
+- Date
+- Short description
+- Current category
+- Confidence
+- Classification source
+- Edit button
+- Delete button
+
+Example:
+
+------------------------------------------------
+HACKATHON
+
+[ Event Photo ]
+
+National AI Hackathon
+
+20 September 2026
+
+Confidence: 91%
+
+Classification: Keyword
+
+[ Edit ]
+[ Delete ]
+------------------------------------------------
+
+============================================================
+24. DRAG AND DROP BETWEEN CATEGORIES
+============================================================
+
+Implement REAL drag-and-drop.
+
+The faculty must be able to drag an event from one category
+to another.
+
+Example:
+
+CODATHON
+
+[ AI Code Challenge ]
+
+        ↓ DRAG
+
+HACKATHON
+
+[ AI Code Challenge ]
+
+When moved:
+
+1. Update event.category.
+2. Update category counts.
+3. Update pie chart.
+4. Update dashboard.
+5. Use the new category in the PDF.
+
+Do NOT create a fake visual drag-and-drop.
+
+The underlying application state must actually change.
+
+============================================================
+25. REORDER EVENTS
+============================================================
+
+Allow events to be reordered within each category.
+
+Example:
+
+HACKATHON
+
+1. Event A
+2. Event B
+3. Event C
+
+User drags Event C above Event A.
+
+Final:
+
+1. Event C
+2. Event A
+3. Event B
+
+The PDF must preserve this exact final order.
+
+============================================================
+26. EDIT EVENT
+============================================================
+
+Every event must have an Edit button.
+
+Editable fields:
+
+- Event Name
+- Description
+- Date
+- Time
+- Venue
+- Organizer
+- Department
+- Club/Chapter
+- Participants
+- Team Size
+- Category
+- Photographs
+
+Buttons:
+
+[ Save Changes ]
+[ Cancel ]
+
+Never overwrite the original data until the user clicks Save.
+
+============================================================
+27. IMAGE MANAGEMENT
+============================================================
+
+For each event:
+
+[ Preview ]
+[ Add Photo ]
+[ Replace Photo ]
+[ Remove Photo ]
+
+If no image exists:
+
+Display:
+
+"No event photograph available"
+
+Use a clean placeholder.
+
+PDF generation must still work.
+
+============================================================
+28. SEARCH
+============================================================
+
+Add:
+
+[ Search events... ]
+
+Search across:
+
+- Event name
+- Description
+- Organizer
+- Department
+- Category
+- Venue
+
+Search results should update dynamically.
+
+============================================================
+29. CATEGORY FILTER
+============================================================
+
+Add:
+
+[ All Categories ▼ ]
+
+Allow:
+
+- All
+- Workshop
+- Hackathon
+- Codathon
+- Outreach Activity
+- Technical Event
+- Seminar / Guest Lecture
+- Competition
+- Other
+
+If custom categories exist, include them automatically.
+
+============================================================
+30. EVENT COUNTERS
+============================================================
+
+Display:
+
+Total Events: 35
+Visible Events: 12
+
+Also display category counts:
+
+Workshop: 8
+Hackathon: 6
+Codathon: 7
+etc.
+
+These must update automatically whenever events are:
+
+- Added
+- Deleted
+- Moved
+- Reclassified
+
+============================================================
+31. DELETE EVENT
+============================================================
+
+Allow deletion.
+
+When Delete is clicked:
+
+"Are you sure you want to remove this event?"
+
+[ Cancel ]
+[ Remove ]
+
+Only remove after confirmation.
+
+Deleted events must NOT appear in:
+
+- Statistics
+- Pie chart
+- PDF
+
+============================================================
+32. ADD EVENT MANUALLY
+============================================================
+
+Provide:
+
+[ + Add Event ]
+
+Fields:
+
+Event Name
+Description
+Date
+Time
+Venue
+Organizer
+Department
+Category
+Photographs
+
+Allow manual event addition if automatic extraction misses
+an event.
+
+Manually added events must behave exactly like automatically
+detected events.
+
+============================================================
+33. DUPLICATE DETECTION
+============================================================
+
+Attempt to detect possible duplicate events using:
+
+- Event name similarity
+- Date
+- Description similarity
+
+If possible duplicate detected:
+
+------------------------------------------------
+Possible Duplicate Event
+
+Event A
+Event B
+
+[ Keep Both ]
+[ Remove Duplicate ]
+------------------------------------------------
+
+Never automatically delete without user confirmation.
+
+============================================================
+34. DASHBOARD
+============================================================
+
+Provide a summary dashboard before PDF generation.
+
+Show:
+
+Total Events
+Workshop Count
+Hackathon Count
+Codathon Count
+Outreach Count
+etc.
+
+Also display:
+
+Pie Chart:
+"Event Distribution by Category"
+
+The chart must be generated from the CURRENT FINAL EVENT
+STATE.
+
+============================================================
+35. PIE CHART
+============================================================
+
+The pie chart must update automatically after:
+
+- Dragging an event
+- Changing category
+- Adding an event
+- Deleting an event
+
+IMPORTANT:
+
+The chart must NOT represent the initial AI/keyword classification
+if the user has subsequently corrected the events.
+
+The chart must always represent the final approved categories.
+
+============================================================
+36. FINAL VALIDATION BEFORE PDF
+============================================================
+
+Before generating the PDF, validate:
+
+- Every event has a name
+- Every event has a category
+- No deleted event remains
+- Category counts are correct
+- Event order is correct
+- Event photographs are correctly associated
+- Edited information is saved
+- Chart reflects final state
+
+If required information is missing, show a warning but do not
+unnecessarily block PDF generation.
+
+Example:
+
+"3 events do not have photographs."
+
+[ Continue Anyway ]
+
+============================================================
+37. REPORT SETTINGS
+============================================================
+
+Before generating the PDF, provide:
+
+Institution Name
+Department Name
+Report Title
+Academic Year
+Reporting Period
+Logo
+Optional Subtitle
+
+Example:
+
+Institution:
+Vidyavardhaka College of Engineering
+
+Department:
+CSE (Artificial Intelligence and Machine Learning)
+
+Report Title:
+Department Event Newsletter
+
+Academic Year:
+2026–2027
+
+Reporting Period:
+June 2026 – September 2026
+
+Allow the user to edit these values.
+
+============================================================
+38. LOGO
+============================================================
+
+Allow logo upload.
+
+Supported:
+
+PNG
+JPG
+JPEG
+
+The logo should appear on the PDF cover/header.
+
+Maintain aspect ratio.
+
+Do not stretch the logo.
+
+If no logo is provided, continue without it.
+
+============================================================
+39. PDF GENERATION
+============================================================
+
+THE FINAL OUTPUT MUST BE A PDF.
+
+Generate a professional academic newsletter/report.
+
+Do NOT simply dump text into a PDF.
+
+The PDF must have:
+
+- Cover page
+- Institution name
+- Department
+- Report title
+- Academic year/reporting period
+- Total event count
+- Pie chart
+- Category-wise sections
+- Event photographs
+- Event names
+- Dates
+- Venue
+- Organizer
+- Descriptions
+- Other available information
+- Page numbers
+- Header/footer
+
+============================================================
+40. PDF COVER PAGE
+============================================================
+
+Create an attractive but professional academic cover page.
+
+Include:
+
+[Institution Logo]
+
+INSTITUTION NAME
+
+DEPARTMENT NAME
+
+EVENT NEWSLETTER REPORT
+
+Academic Year / Reporting Period
+
+Total Events: XX
+
+Generated Date
+
+The user should be able to customize the title and metadata.
+
+============================================================
+41. PDF STATISTICS PAGE
+============================================================
+
+Include:
+
+Total number of events.
+
+Category summary table:
+
+Category              Count
+--------------------------------
+Workshop               8
+Hackathon              5
+Codathon               7
+Outreach Activity      4
+Competition            3
+Other                  2
+
+Also include:
+
+Pie chart:
+"Event Distribution by Category"
+
+============================================================
+42. PDF CATEGORY SECTIONS
+============================================================
+
+Each non-empty category should have its own section.
+
+Example:
+
+========================================
+WORKSHOPS
+========================================
+
+Total Workshops: 8
+
+Event 1
+
+[PHOTO]
+
+Event Name:
+Generative AI Workshop
+
+Date:
+12 September 2026
+
+Venue:
+VVCE
+
+Organizer:
+Department of CSE
+
+Description:
+...
+
+----------------------------------------
+
+Event 2
+...
+
+Then:
+
+========================================
+HACKATHONS
+========================================
+
+etc.
+
+Do not create empty category sections unless explicitly enabled.
+
+============================================================
+43. MULTIPLE PHOTO PDF LAYOUT
+============================================================
+
+If an event has:
+
+1 photo:
+Display one large image.
+
+2 photos:
+Display two images side-by-side where possible.
+
+3+ photos:
+Use a gallery/grid layout.
+
+Never stretch images.
+
+Maintain aspect ratio.
+
+Automatically resize images to fit the page.
+
+============================================================
+44. PDF PAGE MANAGEMENT
+============================================================
+
+Implement proper page breaks.
+
+Requirements:
+
+- No content should overflow page boundaries.
+- Long descriptions should wrap.
+- Images should not be cut unexpectedly.
+- Event cards should remain readable.
+- Use automatic page breaks.
+- Continue long events naturally on the next page.
+- Avoid splitting headings from their content where possible.
+
+============================================================
+45. PDF PREVIEW
+============================================================
+
+After clicking:
+
+[ Generate PDF ]
+
+Generate the actual PDF.
+
+Provide:
+
+[ Preview PDF ]
+[ Download PDF ]
+[ Back to Review ]
+[ Regenerate PDF ]
+
+If possible, show an embedded browser PDF viewer.
+
+If embedded preview is technically difficult, open the PDF in a
+browser-compatible preview/download flow.
+
+============================================================
+46. STRICT FINAL-STATE REQUIREMENT
+============================================================
+
+THIS IS CRITICAL.
+
+The final PDF must ALWAYS be generated from the FINAL USER-APPROVED
+EVENT STATE.
+
+The PDF must NOT use the original extracted classification if
+the user has changed it.
+
+For example:
+
+Initial:
+
+Codathon
+→ AI Code Challenge
+
+User drags it:
+
+Codathon → Hackathon
+
+Final PDF:
+
+HACKATHON
+AI Code Challenge
+
+NOT:
+
+CODATHON
+AI Code Challenge
+
+The same rule applies to:
+
+- Edited event names
+- Edited descriptions
+- Edited dates
+- Changed categories
+- Deleted events
+- Added events
+- Reordered events
+- Replaced photos
+- Added photos
+- Removed photos
+
+Everything in the PDF must reflect the final state.
+
+============================================================
+47. SESSION MANAGEMENT
+============================================================
+
+Use session state / temporary files.
+
+The event data should exist only during the current project session.
+
+Provide:
+
+[ Start New Project ]
+
+When clicked:
+
+"Starting a new project will remove the current session data.
+Continue?"
+
+[ Cancel ]
+[ Start New ]
+
+After confirmation:
+
+- Clear events
+- Clear uploaded files
+- Clear temporary images
+- Clear statistics
+- Clear chart data
+- Return to upload page
+
+============================================================
+48. ERROR HANDLING
+============================================================
+
+Handle gracefully:
+
+- Empty file
+- Corrupted PDF
+- Unsupported file
+- Image-only PDF
+- OCR failure
+- No events detected
+- Missing event name
+- Missing description
+- Missing date
+- Missing photograph
+- Low classification confidence
+- PDF generation failure
+- Large document
+- Duplicate uploads
+- Invalid image
+- API failure
+- Missing API key
+
+Never display raw Python stack traces to normal users.
+
+Show meaningful messages.
+
+Example:
+
+"Unable to extract text from this PDF. The document may be
+scanned or image-based."
+
+============================================================
+49. AI API FAILURE HANDLING
+============================================================
+
+If Gemini/API is configured but unavailable:
+
+DO NOT crash.
+
+Fall back to:
+
+Keyword classification.
+
+The application must remain usable.
+
+============================================================
+50. PRIVACY
+============================================================
+
+Because the application processes institutional documents:
+
+- Do not permanently store uploaded documents.
+- Do not expose uploaded files publicly.
+- Use temporary processing storage.
+- Remove temporary files when the session ends where practical.
+- Do not log complete event documents unnecessarily.
+- Do not send information to external APIs unless the optional
+  AI fallback is actually used.
+
+============================================================
+51. USER INTERFACE DESIGN
+============================================================
+
+Create a modern academic/professional interface.
+
+Style:
+
+- Clean
+- Minimal
+- Professional
+- Modern
+- Good whitespace
+- Clear typography
+- Responsive
+- Easy for faculty members to use
+
+Avoid:
+
+- Excessive gradients
+- Excessive animations
+- Gaming-style UI
+- Unnecessary AI graphics
+- Unnecessary login screens
+- Complex navigation
+
+Use a simple workflow indicator:
+
+01 Upload
+→
+02 Analyze
+→
+03 Review
+→
+04 Generate PDF
+
+============================================================
+52. PAGE STRUCTURE
+============================================================
+
+Page 1:
+HOME / UPLOAD
+
+Page 2:
+PROCESSING
+
+Page 3:
+REVIEW & ARRANGE
+
+Page 4:
+DASHBOARD
+
+Page 5:
+REPORT SETTINGS / PDF GENERATION
+
+============================================================
+53. PROCESSING PAGE
+============================================================
+
+Show meaningful progress.
+
+Example:
+
+Analyzing files...
+
+✓ Reading documents
+✓ Extracting text
+✓ Extracting photographs
+✓ Running OCR where required
+✓ Detecting events
+✓ Extracting event information
+✓ Classifying events
+✓ Calculating confidence
+✓ Preparing review
+
+Do not show a frozen screen.
+
+============================================================
+54. REVIEW PAGE LAYOUT
+============================================================
+
+Desktop layout should support multiple category columns.
+
+Example:
+
+------------------------------------------------------------
+
+WORKSHOP       HACKATHON       CODATHON       OUTREACH
+
+[Event A]      [Event B]       [Event C]       [Event D]
+
+[Event E]      [Event F]       [Event G]       [Event H]
+
+------------------------------------------------------------
+
+Allow scrolling.
+
+On smaller screens, stack categories vertically.
+
+============================================================
+55. EVENT CARD DESIGN
+============================================================
+
+Each card:
+
+[ PHOTO ]
+
+EVENT NAME
+
+Date
+
+Short Description
+
+Category
+
+Confidence
+
+[ Edit ] [ Delete ]
+
+Cards must be draggable.
+
+Cards must be visually distinguishable from one another.
+
+============================================================
+56. ACCESSIBILITY
+============================================================
+
+Use:
+
+- Readable fonts
+- Good contrast
+- Clear labels
+- Accessible buttons
+- Keyboard-accessible controls where possible
+- Meaningful error messages
+
+Do not rely only on color to communicate information.
+
+============================================================
+57. RESPONSIVE DESIGN
+============================================================
+
+Support:
+
+- Desktop
+- Laptop
+- Tablet
+
+Desktop is the primary target.
+
+On smaller screens:
+
+- Category columns stack
+- Cards remain usable
+- Buttons remain accessible
+- Images scale correctly
+
+============================================================
+58. TECHNOLOGY STACK
+============================================================
+
+Prefer free/open-source technologies.
+
+Recommended:
+
+Frontend:
+Streamlit
+
+Backend / processing:
+Python
+
+PDF:
+PyMuPDF
+ReportLab
+
+DOCX:
+python-docx
+
+Images:
+Pillow
+
+OCR:
+Tesseract OCR
+
+Classification:
+Python keyword scoring engine
+
+Charts:
+Matplotlib or Plotly
+
+Optional AI:
+Gemini API
+
+Use stable versions compatible with each other.
+
+============================================================
+59. PROJECT STRUCTURE
+============================================================
+
+Use a clean modular architecture.
+
+Recommended:
+
+event_newsletter/
+│
+├── app.py
+├── config.py
+├── requirements.txt
+├── README.md
+├── .gitignore
+├── .env.example
+│
+├── modules/
+│   ├── document_processor.py
+│   ├── pdf_processor.py
+│   ├── docx_processor.py
+│   ├── ocr_processor.py
+│   ├── event_detector.py
+│   ├── event_extractor.py
+│   ├── classifier.py
+│   ├── keyword_manager.py
+│   ├── image_processor.py
+│   ├── duplicate_detector.py
+│   ├── statistics.py
+│   ├── pdf_generator.py
+│   └── ai_fallback.py
+│
+├── ui/
+│   ├── upload.py
+│   ├── processing.py
+│   ├── review.py
+│   ├── dashboard.py
+│   ├── settings.py
+│   └── pdf_preview.py
+│
+├── assets/
+│   └── ...
+│
+└── temp/
+    └── ...
+
+Adjust the structure if necessary, but maintain modularity.
+
+============================================================
+60. CODE QUALITY
+============================================================
+
+Use:
+
+- Meaningful variable names
+- Clear functions
+- Modular code
+- Proper exception handling
+- Comments for complex logic
+- No duplicated code
+- No unnecessary dependencies
+
+Do not create one giant file containing the entire application.
+
+============================================================
+61. TESTING
+============================================================
+
+Create test/sample documents if necessary.
+
+Test:
+
+1. Single PDF
+2. Multiple PDFs
+3. DOCX
+4. JPG
+5. PNG
+6. Multiple events in one file
+7. Multiple files
+8. Image-based PDF
+9. OCR
+10. Missing photo
+11. Missing date
+12. Missing description
+13. Keyword classification
+14. Weighted scoring
+15. Confidence
+16. Ambiguous classification
+17. AI fallback
+18. Drag event between categories
+19. Reorder event
+20. Edit event
+21. Replace photo
+22. Add photo
+23. Remove photo
+24. Delete event
+25. Add event
+26. Search
+27. Filter
+28. Duplicate detection
+29. Pie chart
+30. Statistics
+31. PDF generation
+32. PDF page breaks
+33. Multiple photographs
+34. Logo
+35. Final corrected PDF
+36. Start New Project
+37. Missing Gemini API key
+38. Gemini API failure
+39. Corrupted document
+40. Empty file
+
+============================================================
+62. CRITICAL TEST CASE
+============================================================
+
+Create this test:
+
+Initial classification:
+
+CODATHON
+
+Event:
+"AI Innovation Challenge"
+
+User drags event:
+
+CODATHON
+       ↓
+HACKATHON
+
+Verify:
+
+Category count changes.
+
+Pie chart changes.
+
+Dashboard changes.
+
+PDF changes.
+
+Final PDF MUST contain:
+
+HACKATHON
+AI Innovation Challenge
+
+It MUST NOT contain:
+
+CODATHON
+AI Innovation Challenge
+
+============================================================
+63. ANOTHER CRITICAL TEST
+============================================================
+
+Initial event:
+
+Event Name:
+AI Workshop
+
+User edits:
+
+Event Name:
+Generative AI Hands-on Workshop
+
+User clicks Save.
+
+PDF MUST show:
+
+Generative AI Hands-on Workshop
+
+NOT:
+
+AI Workshop
+
+============================================================
+64. ANOTHER CRITICAL TEST
+============================================================
+
+Initial:
+
+10 events
+
+User deletes:
+
+2 events
+
+Final:
+
+8 events
+
+Dashboard:
+Total Events = 8
+
+Pie chart:
+Based on 8 events
+
+PDF:
+Contains 8 events
+
+============================================================
+65. ANOTHER CRITICAL TEST
+============================================================
+
+Initial:
+
+5 events
+
+User manually adds:
+
+1 event
+
+Final:
+
+6 events
+
+Dashboard:
+6
+
+Pie chart:
+6
+
+PDF:
+6 events
+
+============================================================
+66. ANOTHER CRITICAL TEST
+============================================================
+
+Event has 3 photographs.
+
+PDF must contain all 3 photographs in a clean gallery layout.
+
+============================================================
+67. README
+============================================================
+
+Create a detailed README.md containing:
+
+1. Project title
+2. Problem statement
+3. Objective
+4. Features
+5. Workflow
+6. Architecture
+7. Technology stack
+8. Installation
+9. Running locally
+10. Environment variables
+11. Gemini API setup
+12. Keyword classification explanation
+13. Keyword weighting explanation
+14. Category configuration
+15. Keyword configuration
+16. OCR setup
+17. PDF generation explanation
+18. Testing
+19. Deployment
+20. Limitations
+21. Future enhancements
+
+============================================================
+68. REQUIREMENTS.TXT
+============================================================
+
+Create a correct requirements.txt.
+
+Only include required dependencies.
+
+Ensure versions are compatible.
+
+============================================================
+69. ENVIRONMENT FILE
+============================================================
+
+Create:
+
+.env.example
+
+With:
+
+GEMINI_API_KEY=your_api_key_here
+
+Never commit actual API keys.
+
+============================================================
+70. GITIGNORE
+============================================================
+
+Create .gitignore containing:
+
+.env
+__pycache__/
+*.pyc
+temp/
+generated/
+uploads/
+.venv/
+venv/
+
+and other appropriate temporary files.
+
+============================================================
+71. DEPLOYMENT
+============================================================
+
+Make the project deployable using free hosting where practical.
+
+Prefer:
+
+Streamlit Community Cloud
+
+Ensure:
+
+- requirements.txt works
+- No absolute Windows paths
+- No hard-coded local paths
+- Temporary directories are created dynamically
+- No required local database
+- No required paid service
+- Application starts correctly
+
+============================================================
+72. PERFORMANCE
+============================================================
+
+The application should remain responsive.
+
+Avoid unnecessary repeated processing.
+
+Do not re-run OCR or extraction unnecessarily.
+
+Cache expensive operations where appropriate.
+
+Do not send the same text repeatedly to an AI API.
+
+============================================================
+73. SECURITY
+============================================================
+
+Never hard-code API keys.
+
+Validate file types.
+
+Limit file sizes reasonably.
+
+Prevent unsafe filenames from causing path issues.
+
+Use temporary directories safely.
+
+Do not expose internal file paths to the user.
+
+============================================================
+74. IMPORTANT: NO FAKE FUNCTIONALITY
+============================================================
+
+DO NOT:
+
+- Create fake AI classification
+- Create fake PDF buttons
+- Create fake drag-and-drop
+- Create fake charts
+- Create fake upload processing
+- Hard-code sample events as actual results
+- Display success when processing failed
+
+Every visible function must actually work.
+
+============================================================
+75. IMPORTANT: NO OVERENGINEERING
+============================================================
+
+Do NOT add unnecessary:
+
+- Authentication
+- Database
+- Payment
+- Email
+- Notifications
+- Social media
+- User management
+- Admin dashboard
+- Cloud storage
+
+The project is specifically:
+
+EVENT FILES
+→ AUTOMATIC CLASSIFICATION
+→ HUMAN REVIEW
+→ PDF NEWSLETTER
+
+Keep the architecture simple and reliable.
+
+============================================================
+76. FINAL APPLICATION USER EXPERIENCE
+============================================================
+
+The complete user journey must be:
+
+STEP 1:
+
+Open application.
+
+Show:
+
+"Turn your event files into a structured newsletter report."
+
+[ Upload Event Files ]
+
+STEP 2:
+
+Upload PDF/DOCX/images.
+
+STEP 3:
+
+Click:
+
+[ Analyze Events ]
+
+STEP 4:
+
+Application processes files.
+
+STEP 5:
+
+Show:
+
+"18 Events Detected"
+
+Example:
+
+Workshop: 6
+Hackathon: 3
+Codathon: 4
+Outreach: 2
+Competition: 2
+Other: 1
+
+STEP 6:
+
+User enters report settings:
+
+Institution
+Department
+Report title
+Academic year
+Reporting period
+Logo
+
+STEP 7:
+
+Review events.
+
+STEP 8:
+
+Correct classification by drag-and-drop.
+
+STEP 9:
+
+Edit event details if required.
+
+STEP 10:
+
+Reorder events.
+
+STEP 11:
+
+Add/delete events if required.
+
+STEP 12:
+
+Dashboard updates automatically.
+
+STEP 13:
+
+Pie chart updates automatically.
+
+STEP 14:
+
+Click:
+
+[ Generate PDF ]
+
+STEP 15:
+
+Preview PDF.
+
+STEP 16:
+
+Click:
+
+[ Download PDF ]
+
+STEP 17:
+
+Click:
+
+[ Start New Project ]
+
+Current session is cleared.
+
+============================================================
+77. FINAL ACCEPTANCE CRITERIA
+============================================================
+
+The project is NOT COMPLETE unless all of the following work:
+
+[ ] PDF upload
+[ ] DOCX upload
+[ ] JPG upload
+[ ] PNG upload
+[ ] Multiple file upload
+[ ] File validation
+[ ] Text extraction
+[ ] Image extraction
+[ ] OCR
+[ ] Multiple event detection
+[ ] Flexible document layout handling
+[ ] Event name extraction
+[ ] Description extraction
+[ ] Date extraction
+[ ] Time extraction
+[ ] Venue extraction
+[ ] Organizer extraction
+[ ] Department extraction
+[ ] Club extraction
+[ ] Multiple photos per event
+[ ] Correct event-photo association
+[ ] Keyword classification
+[ ] Keyword weighting
+[ ] Configurable categories
+[ ] Configurable keywords
+[ ] Confidence score
+[ ] Needs Review state
+[ ] Optional AI fallback
+[ ] AI failure fallback
+[ ] Review page
+[ ] Event cards
+[ ] REAL drag-and-drop
+[ ] Move event between categories
+[ ] Reorder events
+[ ] Edit event
+[ ] Replace image
+[ ] Add image
+[ ] Remove image
+[ ] Delete event
+[ ] Add event manually
+[ ] Search
+[ ] Filter
+[ ] Duplicate detection
+[ ] Category counts
+[ ] Total event count
+[ ] Dynamic pie chart
+[ ] Final-state statistics
+[ ] Report settings
+[ ] Logo upload
+[ ] Professional cover page
+[ ] Category-wise PDF sections
+[ ] Multiple photo PDF layout
+[ ] Page numbers
+[ ] Header/footer
+[ ] Proper page breaks
+[ ] PDF preview
+[ ] PDF download
+[ ] Final PDF uses corrected data
+[ ] Session-based processing
+[ ] Start New Project
+[ ] Temporary data cleanup
+[ ] Error handling
+[ ] Privacy protection
+[ ] README
+[ ] requirements.txt
+[ ] .env.example
+[ ] .gitignore
+[ ] Testing
+[ ] Deployment configuration
+
+============================================================
+78. DEVELOPMENT PROCESS
+============================================================
+
+Follow this development sequence:
+
+PHASE 1:
+Set up project architecture.
+
+PHASE 2:
+Implement file upload.
+
+PHASE 3:
+Implement PDF/DOCX/image extraction.
+
+PHASE 4:
+Implement OCR.
+
+PHASE 5:
+Implement event detection.
+
+PHASE 6:
+Implement event information extraction.
+
+PHASE 7:
+Implement keyword classification.
+
+PHASE 8:
+Implement weighted scoring and confidence.
+
+PHASE 9:
+Implement optional AI fallback.
+
+PHASE 10:
+Implement review UI.
+
+PHASE 11:
+Implement REAL drag-and-drop.
+
+PHASE 12:
+Implement editing/reordering.
+
+PHASE 13:
+Implement add/delete/search/filter.
+
+PHASE 14:
+Implement dashboard/statistics.
+
+PHASE 15:
+Implement pie chart.
+
+PHASE 16:
+Implement PDF generation.
+
+PHASE 17:
+Implement PDF preview/download.
+
+PHASE 18:
+Implement session clearing.
+
+PHASE 19:
+Test everything.
+
+PHASE 20:
+Fix all runtime and UI errors.
+
+============================================================
+79. FINAL DEVELOPMENT INSTRUCTION
+============================================================
+
+DO NOT STOP AFTER CREATING A PLAN.
+
+DO NOT ONLY GENERATE FRONTEND CODE.
+
+DO NOT ONLY CREATE A MOCKUP.
+
+DO NOT CREATE PLACEHOLDER FUNCTIONS.
+
+ACTUALLY BUILD THE COMPLETE APPLICATION.
+
+Run the application after implementation.
+
+Test the complete workflow with real/sample documents.
+
+Fix errors before declaring completion.
+
+Verify:
+
+UPLOAD
+→ EXTRACTION
+→ CLASSIFICATION
+→ REVIEW
+→ DRAG/DROP
+→ EDIT
+→ STATISTICS
+→ PDF
+
+Verify that changes made by the user are reflected in the
+final PDF.
+
+Especially verify that:
+
+1. Moving an event between categories changes the PDF.
+2. Editing an event changes the PDF.
+3. Reordering events changes the PDF.
+4. Deleting an event removes it from the PDF.
+5. Adding an event adds it to the PDF.
+6. Replacing a photo changes the PDF.
+7. Pie chart represents final corrected data.
+8. Multiple photographs are included correctly.
+9. No database is required.
+10. Application works without Gemini API.
+
+============================================================
+80. FINAL OUTPUT FROM YOU
+============================================================
+
+After building and testing the project, provide:
+
+1. Complete project structure.
+2. Technologies used.
+3. Installation commands.
+4. How to run locally.
+5. Optional API configuration.
+6. How keyword classification works.
+7. How to modify categories.
+8. How to modify keywords.
+9. How to generate the PDF.
+10. How to deploy.
+11. Testing performed.
+12. Known limitations.
+13. Future improvements.
+
+MOST IMPORTANT:
+
+BUILD THE COMPLETE WORKING PROJECT.
+
+DO NOT GIVE ME ONLY AN EXPLANATION.
+
+DO NOT STOP AT A UI.
+
+DO NOT USE FAKE DATA AS THE CORE FUNCTIONALITY.
+
+IMPLEMENT THE COMPLETE END-TO-END APPLICATION.
+============================================================
+END OF MASTER PROMPT
+============================================================

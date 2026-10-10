@@ -1,0 +1,1 @@
+- [Session-only event data](event-data-privacy.md) — Institutional event files and extracted records must remain temporary in the browser.
