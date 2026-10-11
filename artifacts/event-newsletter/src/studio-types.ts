@@ -7,4 +7,23 @@ export type EventRecord = {
   classificationSource: string; needsReview: boolean; sourceFile: string; order: number;
 };
 export type SourceFile = { id: string; file: File; status: 'ready' | 'working' | 'done' | 'warning' | 'error'; message?: string };
-export type ReportInfo = { institution: string; department: string; title: string; academicYear: string; period: string; subtitle: string; logo: string };
+export type ReportInfo = {
+  institution: string;
+  department: string;
+  title: string;
+  academicYear: string;
+  period: string;
+  subtitle: string;
+  logo: string;
+  departmentLogo: string;
+  coverImage: string;
+  tagline: string;
+  collegeProfile: string;
+  departmentTagline: string;
+  vision: string;
+  mission: string;
+  hodMessage: string;
+  hodName: string;
+  hodRole: string;
+  editorialTeam: string;
+};

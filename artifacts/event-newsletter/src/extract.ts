@@ -5,7 +5,89 @@ const accepted = ['application/pdf', 'application/vnd.openxmlformats-officedocum
 export const allowedFile = (file: File) => accepted.includes(file.type) || /\.(pdf|docx|jpe?g|png)$/i.test(file.name);
 
 export type ExtractedPage = { text: string; image?: string };
-export type LocalFileResult = { text: string; warning?: string; photos?: string[]; pages?: ExtractedPage[] };
+export type NewsletterSourceRow = { month: string; eventType: string; eventName: string; description: string; images: string[] };
+export type LocalFileResult = { text: string; warning?: string; photos?: string[]; pages?: ExtractedPage[]; newsletterRows?: NewsletterSourceRow[] };
+
+const decodeHtmlEntities = (value: string) => value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
+  const named: Record<string, string> = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '-', mdash: '-',
+    lsquo: "'", rsquo: "'", ldquo: '"', rdquo: '"', hellip: '…',
+  };
+  if (code[0] !== '#') return named[code.toLowerCase()] ?? entity;
+  const numeric = code[1]?.toLowerCase() === 'x' ? Number.parseInt(code.slice(2), 16) : Number.parseInt(code.slice(1), 10);
+  try { return Number.isFinite(numeric) ? String.fromCodePoint(numeric) : entity; } catch { return entity; }
+});
+
+const htmlFragmentText = (fragment: string) => decodeHtmlEntities(fragment
+  .replace(/<!--[\s\S]*?-->/g, '')
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/(?:p|div|li|h[1-6])\s*>/gi, '\n')
+  .replace(/<(?:p|div|li|h[1-6])\b[^>]*>/gi, '')
+  .replace(/<[^>]+>/g, ' '))
+  .replace(/\u00a0/g, ' ')
+  .replace(/[ \t]+\n/g, '\n')
+  .replace(/\n[ \t]+/g, '\n')
+  .replace(/[ \t]{2,}/g, ' ')
+  .replace(/\n{2,}/g, '\n')
+  .trim();
+
+function cellsInHtmlRow(rowHtml: string) {
+  return Array.from(rowHtml.matchAll(/<(td|th)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi), match => ({
+    attributes: match[2],
+    html: match[3],
+    text: htmlFragmentText(match[3]),
+    colSpan: Number(match[2].match(/\bcolspan\s*=\s*["']?(\d+)/i)?.[1] || 1),
+  }));
+}
+
+export function parseNewsletterTableHtml(html: string): { rows: NewsletterSourceRow[]; unsupportedImages: number } {
+  const tables = Array.from(html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table\s*>/gi), match => match[1]);
+  const tableRows = tables.map(table => Array.from(table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi), match => match[1]));
+  const tableIndex = tableRows.findIndex(rows => {
+    const headers = cellsInHtmlRow(rows[0] || '').map(cell => cell.text.toLowerCase().replace(/[^a-z]+/g, ' ').trim());
+    return headers.includes('event month') && headers.includes('event type') && headers.includes('event description');
+  });
+  if (tableIndex < 0) return { rows: [], unsupportedImages: 0 };
+
+  const rows: NewsletterSourceRow[] = [];
+  let currentMonth = '';
+  let currentType = '';
+  let unsupportedImages = 0;
+  const monthHeading = /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember|etember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b.*\b20\d{2}\b/i;
+
+  for (const rowHtml of tableRows[tableIndex].slice(1)) {
+    const cells = cellsInHtmlRow(rowHtml);
+    const values = cells.map(cell => cell.text);
+    const allText = values.join(' ').trim();
+    if (cells.length <= 2 && !/<img\b/i.test(rowHtml) && monthHeading.test(allText)) {
+      currentMonth = allText.replace(/sepetember/i, 'September');
+      currentType = '';
+      continue;
+    }
+    if (cells.length < 4 || cells.length > 5) continue;
+    const compactRow = cells.length === 4;
+    if (compactRow) {
+      if (values[0]) currentType = values[0];
+    } else {
+      if (values[0]) currentMonth = values[0];
+      if (values[1]) currentType = values[1];
+    }
+    const imageTags = Array.from(rowHtml.matchAll(/<img\b[^>]*>/gi), match => match[0]);
+    const images = imageTags.flatMap(image => {
+      const srcMatch = image.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+      const src = srcMatch?.[1] || srcMatch?.[2] || srcMatch?.[3] || '';
+      if (/^data:image\/(?:png|jpe?g);base64,/i.test(src)) return [src];
+      unsupportedImages += 1;
+      return [];
+    });
+    const description = cells[compactRow ? 3 : 4].text;
+    const eventName = values[compactRow ? 1 : 2];
+    if (!description.trim() && !eventName.trim() && !images.length) continue;
+    if (description.trim().length < 18 && !images.length) continue;
+    rows.push({ month: currentMonth, eventType: currentType, eventName, description, images });
+  }
+  return { rows, unsupportedImages };
+}
 
 const fileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
@@ -111,10 +193,17 @@ export async function readLocalFile(file: File): Promise<LocalFileResult> {
         },
       ),
     ]);
+    const structured = parseNewsletterTableHtml(html.value);
     const photos = Array.from(html.value.matchAll(/<img[^>]+src=["'](data:image\/(?:png|jpe?g);base64,[^"']+)["']/gi), (match: RegExpMatchArray) => match[1]).filter((value): value is string => Boolean(value));
-    return result.value.trim()
-      ? { text: result.value, photos }
-      : { text: '', photos, warning: 'The document contains no readable text.' };
+    const warning = structured.unsupportedImages
+      ? `${structured.unsupportedImages} embedded image${structured.unsupportedImages === 1 ? ' was' : 's were'} not in a supported JPG or PNG format.`
+      : undefined;
+    return {
+      text: result.value.trim(),
+      photos,
+      newsletterRows: structured.rows.length ? structured.rows : undefined,
+      warning: warning || (!result.value.trim() ? 'The document contains no readable text.' : undefined),
+    };
   }
   if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
     try {
@@ -210,6 +299,63 @@ export function eventsFromText(text: string, sourceFile: string, categories: Cat
       classificationSource: best?.score ? 'Keyword match' : 'Unclassified',
       needsReview: !hasPotential || !best?.score || confidence < reviewThreshold || !dateVal,
       sourceFile, order: startOrder + idx,
+    };
+  });
+}
+
+function newsletterCategory(row: NewsletterSourceRow, categories: Category[]): string {
+  const type = row.eventType.toLowerCase();
+  const combined = `${row.eventType} ${row.eventName} ${row.description}`.toLowerCase();
+  const categoryIds = {
+    workshops: 'workshops', talks: 'talks', codathons: 'codathons', hackathons: 'hackathons',
+    alumni: 'alumni', clubs: 'clubs', outreach: 'outreach', department: 'department',
+    students: 'students', faculty: 'faculty', placements: 'placements',
+  };
+  const categoryById = (id: string) => categories.find(category => category.id === id)?.id;
+  const fallback = categories.find(category => category.id === 'other')?.id || categories[0]?.id || '';
+  if (/placement|placed\s*@|offer letter|salary package/.test(combined)) return categoryById(categoryIds.placements) || fallback;
+  if (/faculty/.test(type) && /achiv|achiev/.test(type)) return categoryById(categoryIds.faculty) || fallback;
+  if (/(?:student|stdent)/.test(type) && /achiv|achiev|activit/.test(type)) return categoryById(categoryIds.students) || fallback;
+  if (/alumni/.test(combined)) return categoryById(categoryIds.alumni) || fallback;
+  if (/club/.test(type) || /club activity/.test(row.eventName.toLowerCase())) return categoryById(categoryIds.clubs) || fallback;
+  if (/outreach/.test(combined)) return categoryById(categoryIds.outreach) || fallback;
+  if (/hack.?athon|hack.?ai.?thon|ideathon|buildathon/.test(combined)) return categoryById(categoryIds.hackathons) || fallback;
+  if (/code.?athon|codathon|coding contest|programming contest/.test(combined)) return categoryById(categoryIds.codathons) || fallback;
+  if (/technical talk|technical session|guest lecture|seminar/.test(combined)) return categoryById(categoryIds.talks) || fallback;
+  if (/workshop|skill enhancement/.test(combined) && !/faculty/.test(type)) return categoryById(categoryIds.workshops) || fallback;
+  if (/department/.test(type)) return categoryById(categoryIds.department) || fallback;
+  if (/(?:student|stdent)/.test(type)) return categoryById(categoryIds.students) || fallback;
+  if (/faculty/.test(type)) return categoryById(categoryIds.faculty) || fallback;
+  return fallback;
+}
+
+function newsletterTitle(row: NewsletterSourceRow): string {
+  const inputName = row.eventName.trim();
+  const genericName = /^(?:department activity|faculty achievements?|student activities?|student achievements?|workshop|technical talk|codeathon|codathon|hackathon|outreach|club activity|alumni interaction|fdp organized)$/i;
+  const dateLike = /^(?:\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{1,2}(?:st|nd|rd|th)?\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{2,4})$/i;
+  if (inputName && !genericName.test(inputName) && !dateLike.test(inputName.replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim())) return inputName;
+  const placementName = row.description.match(/\b((?:(?:Mr|Ms|Mrs|Miss|Dr)\.?\s+)?[A-Z][A-Za-z'’.-]+(?:\s+[A-Z][A-Za-z'’.-]+){0,3})\s+(?:has\s+been\s+)?(?:placed|selected)\b/i)?.[1];
+  if (placementName && /placement|placed|offer letter/i.test(`${row.eventType} ${row.description}`)) return placementName.trim();
+  const quoted = row.description.match(/[“"‘']([^”"’']{6,100})[”"’']/);
+  if (quoted?.[1]) return quoted[1].trim();
+  const firstSentence = row.description.trim().split(/(?<=[.!?])\s+/)[0] || '';
+  if (firstSentence.length <= 92) return firstSentence;
+  return `${firstSentence.slice(0, 88).replace(/\s+\S*$/, '')}…`;
+}
+
+export function eventsFromNewsletterRows(rows: NewsletterSourceRow[], sourceFile: string, categories: Category[], startOrder: number): EventRecord[] {
+  return rows.map((row, index) => {
+    const name = newsletterTitle(row);
+    const date = findDate(row.description) || row.month;
+    const category = newsletterCategory(row, categories);
+    const unknownType = !row.eventType.trim();
+    return {
+      id: id(), name, description: row.description.trim(), date, time: valueAfter(row.description, ['time']),
+      venue: valueAfter(row.description, ['venue', 'location']), organizer: valueAfter(row.description, ['organizer', 'host', 'coordinator']),
+      department: '', club: '', participants: '', teamSize: '', category, images: row.images,
+      confidence: unknownType ? 0.62 : 0.96, score: unknownType ? 0 : 5,
+      classificationSource: 'Newsletter data form', needsReview: !name || !row.description.trim() || !row.month || unknownType,
+      sourceFile, order: startOrder + index,
     };
   });
 }

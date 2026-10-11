@@ -2,21 +2,45 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, BookOpen, Check, ChevronRight, CircleAlert, ClipboardList, CloudUpload, FileImage, FileText, FolderOpen, ImagePlus, Info, LockKeyhole, Pencil, Plus, Search, Settings2, ShieldCheck, Sparkles, Trash2, Upload, X, Download, Eye, RotateCcw, GripVertical, ChartNoAxesColumnIncreasing, ListFilter, CircleHelp } from 'lucide-react';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import NotFound from '@/pages/not-found';
-import { allowedFile, eventsFromText, readLocalFile } from './extract';
+import { allowedFile, eventsFromNewsletterRows, eventsFromText, readLocalFile } from './extract';
+import { buildNewsletterPdf } from './newsletter-pdf';
 import type { Category, EventRecord, ReportInfo, SourceFile } from './studio-types';
 import './studio.css';
 
 const defaultCategories: Category[] = [
-  { id: 'workshop', name: 'Workshop', keywords: [{ term: 'workshop', weight: 5 }, { term: 'training', weight: 3 }, { term: 'hands-on', weight: 2 }, { term: 'tutorial', weight: 2 }, { term: 'masterclass', weight: 3 }, { term: 'practical session', weight: 3 }] },
-  { id: 'hackathon', name: 'Hackathon', keywords: [{ term: 'hackathon', weight: 5 }, { term: 'prototype', weight: 3 }, { term: 'innovation challenge', weight: 3 }, { term: 'team challenge', weight: 3 }, { term: 'buildathon', weight: 4 }, { term: 'problem solving', weight: 2 }] },
-  { id: 'codathon', name: 'Codathon', keywords: [{ term: 'codathon', weight: 5 }, { term: 'coding contest', weight: 4 }, { term: 'programming contest', weight: 4 }, { term: 'competitive programming', weight: 4 }, { term: 'coding challenge', weight: 3 }, { term: 'algorithm challenge', weight: 3 }] },
-  { id: 'outreach', name: 'Outreach Activity', keywords: [{ term: 'outreach', weight: 5 }, { term: 'awareness campaign', weight: 4 }, { term: 'community service', weight: 4 }, { term: 'school visit', weight: 3 }, { term: 'rural development', weight: 3 }, { term: 'public awareness', weight: 3 }] },
-  { id: 'technical', name: 'Technical Event', keywords: [{ term: 'technical event', weight: 5 }, { term: 'technology', weight: 2 }, { term: 'technical session', weight: 4 }, { term: 'technical talk', weight: 4 }, { term: 'technology session', weight: 3 }] },
-  { id: 'seminar', name: 'Seminar / Guest Lecture', keywords: [{ term: 'seminar', weight: 5 }, { term: 'guest lecture', weight: 5 }, { term: 'expert talk', weight: 4 }, { term: 'invited talk', weight: 4 }, { term: 'keynote', weight: 3 }, { term: 'industry talk', weight: 4 }] },
-  { id: 'competition', name: 'Competition', keywords: [{ term: 'competition', weight: 5 }, { term: 'contest', weight: 4 }, { term: 'challenge', weight: 2 }, { term: 'quiz', weight: 3 }, { term: 'championship', weight: 4 }] },
+  { id: 'workshops', name: 'Workshops', keywords: [{ term: 'workshop', weight: 5 }, { term: 'training', weight: 3 }, { term: 'skill enhancement', weight: 3 }, { term: 'hands-on', weight: 2 }] },
+  { id: 'talks', name: 'Technical Talks', keywords: [{ term: 'technical talk', weight: 5 }, { term: 'technical session', weight: 4 }, { term: 'seminar', weight: 4 }, { term: 'guest lecture', weight: 4 }] },
+  { id: 'codathons', name: 'Codeathons', keywords: [{ term: 'codeathon', weight: 5 }, { term: 'codathon', weight: 5 }, { term: 'coding contest', weight: 4 }] },
+  { id: 'hackathons', name: 'Hackathons', keywords: [{ term: 'hackathon', weight: 5 }, { term: 'ideathon', weight: 4 }, { term: 'buildathon', weight: 4 }] },
+  { id: 'alumni', name: 'Alumni Interactions', keywords: [{ term: 'alumni interaction', weight: 5 }, { term: 'alumni talk', weight: 4 }] },
+  { id: 'clubs', name: 'Club Activities', keywords: [{ term: 'club activity', weight: 5 }, { term: 'club activities', weight: 5 }, { term: 'student club', weight: 3 }] },
+  { id: 'outreach', name: 'Outreach Activities', keywords: [{ term: 'outreach', weight: 5 }, { term: 'awareness campaign', weight: 4 }, { term: 'school visit', weight: 3 }] },
+  { id: 'department', name: 'Department Activities', keywords: [{ term: 'department activity', weight: 4 }, { term: 'industrial visit', weight: 4 }, { term: 'student conclave', weight: 3 }, { term: 'FDP', weight: 3 }] },
+  { id: 'students', name: 'Student Achievements', keywords: [{ term: 'student achievement', weight: 5 }, { term: 'winner', weight: 3 }, { term: 'secured first place', weight: 4 }, { term: 'selected for', weight: 2 }] },
+  { id: 'faculty', name: 'Faculty Achievements', keywords: [{ term: 'faculty achievement', weight: 5 }, { term: 'published', weight: 3 }, { term: 'patent filed', weight: 4 }, { term: 'paper presenter', weight: 3 }] },
+  { id: 'placements', name: 'Placemental Success', keywords: [{ term: 'placement', weight: 5 }, { term: 'placed', weight: 5 }, { term: 'salary package', weight: 3 }] },
   { id: 'other', name: 'Other', keywords: [] },
 ];
-const emptyReport: ReportInfo = { institution: '', department: '', title: 'Faculty Events Newsletter', academicYear: '', period: '', subtitle: '', logo: '' };
+const emptyReport: ReportInfo = {
+  institution: '',
+  department: '',
+  title: 'Department Newsletter',
+  academicYear: '',
+  period: '',
+  subtitle: 'Department Newsletter',
+  logo: '',
+  departmentLogo: '',
+  coverImage: '',
+  tagline: '',
+  collegeProfile: '',
+  departmentTagline: '',
+  vision: '',
+  mission: '',
+  hodMessage: '',
+  hodName: '',
+  hodRole: '',
+  editorialTeam: '',
+};
 type Page = 'upload' | 'review' | 'dashboard' | 'report' | 'settings';
 type Modal = 'edit' | 'add' | 'delete' | 'clear' | 'new-project' | 'duplicate' | 'category-delete' | null;
 const uid = () => crypto.randomUUID();
@@ -45,7 +69,7 @@ const possiblySameEvent = (first: EventRecord, second: EventRecord) => {
 const missingEventFields = (event: EventRecord) => [
   !event.name.trim() && 'title',
   !event.date.trim() && 'date',
-  !event.venue.trim() && 'venue',
+  event.classificationSource !== 'Newsletter data form' && !event.venue.trim() && 'venue',
   !event.description.trim() && 'description',
 ].filter(Boolean) as string[];
 const eventNeedsReview = (event: EventRecord) => event.needsReview || missingEventFields(event).length > 0;
@@ -69,9 +93,13 @@ function App() {
   const [toast, setToast] = useState('');
   const [pdfUrl, setPdfUrl] = useState('');
   const [logoName, setLogoName] = useState('');
+  const [departmentLogoName, setDepartmentLogoName] = useState('');
+  const [coverImageName, setCoverImageName] = useState('');
   const eventsRef = useRef<EventRecord[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+  const departmentLogoRef = useRef<HTMLInputElement>(null);
+  const coverImageRef = useRef<HTMLInputElement>(null);
   const importImagesRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -103,16 +131,20 @@ function App() {
     setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: 'working', message: 'Reading locally…' } : f));
     try {
       const result = await readLocalFile(sf.file);
-      if (result.text) {
+      let importedCount = 0;
+      if (result.text || result.newsletterRows?.length) {
         let nextOrder = eventsRef.current.length;
-        let parsed = result.pages?.length
+        let parsed = result.newsletterRows?.length
+          ? eventsFromNewsletterRows(result.newsletterRows, sf.file.name, categories, nextOrder)
+          : result.pages?.length
           ? result.pages.flatMap(page => {
               const pageEvents = eventsFromText(page.text, sf.file.name, categories, nextOrder, reviewThreshold);
               nextOrder += pageEvents.length;
               return pageEvents.map(event => ({ ...event, images: page.image ? [page.image] : [] }));
             })
           : eventsFromText(result.text, sf.file.name, categories, eventsRef.current.length, reviewThreshold);
-        if (result.photos?.length && parsed.length) {
+        importedCount = parsed.length;
+        if (!result.newsletterRows?.length && result.photos?.length && parsed.length) {
           parsed = parsed.map((event, index) => ({
             ...event,
             images: [...event.images, ...result.photos!.filter((_, photoIndex) => photoIndex % parsed.length === index)],
@@ -138,8 +170,12 @@ function App() {
           return;
         }
       }
-      setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: result.warning ? 'warning' : 'done', message: result.warning || (result.text ? 'Analysis complete' : 'No readable text found') } : f));
+      const successMessage = result.newsletterRows?.length
+        ? `${importedCount} newsletter rows imported; row photos kept with their entries`
+        : result.text ? 'Analysis complete' : 'No readable text found';
+      setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: result.warning ? 'warning' : 'done', message: result.warning || successMessage } : f));
       if (result.warning && result.text) notify('Text extracted with a review note.');
+      else if (result.newsletterRows?.length) notify(`${importedCount} newsletter rows imported. Review categories, wording and images.`);
       else if (result.text) notify('Local analysis complete. Check every extracted detail.');
       else notify(result.warning || 'No text could be extracted.');
     } catch {
@@ -169,6 +205,7 @@ function App() {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     eventsRef.current=[];
     setFiles([]); setEvents([]); setCategories(defaultCategories); setReviewThreshold(0.62); setReport(emptyReport); setPdfUrl(''); setSearch(''); setFilter('all'); setDuplicateQueue([]); setActiveEvent(null); setPendingDelete(null); setPage('upload'); setModal(null);
+    setLogoName(''); setDepartmentLogoName(''); setCoverImageName('');
     notify('Session workspace cleared.');
   };
   const saveEvent = (event: EventRecord) => {
@@ -195,6 +232,25 @@ function App() {
   const imageToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(); reader.readAsDataURL(file);
   });
+  const imageToCoverDataUrl = async (file: File) => {
+    const source = await imageToDataUrl(file);
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('Unable to read cover photo'));
+      element.src = source;
+    });
+    const width = 1600, height = 600, targetRatio = width / height;
+    const sourceRatio = image.naturalWidth / image.naturalHeight;
+    const cropWidth = sourceRatio > targetRatio ? image.naturalHeight * targetRatio : image.naturalWidth;
+    const cropHeight = sourceRatio > targetRatio ? image.naturalHeight : image.naturalWidth / targetRatio;
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas is unavailable');
+    context.drawImage(image, (image.naturalWidth - cropWidth) / 2, (image.naturalHeight - cropHeight) / 2, cropWidth, cropHeight, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.88);
+  };
   const addEventImages = async (list: FileList | null) => {
     if (!list) return [];
     const imgs = Array.from(list).filter(f => /^image\/(jpeg|png)$/.test(f.type));
@@ -229,157 +285,15 @@ function App() {
 
   const generatePdf = async () => {
     if (!events.length) { notify('Add or extract an event before generating a report.'); return; }
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const W = 210, H = 297, margin = 19;
-    const green = [42, 79, 67] as [number, number, number], gold = [184, 151, 91] as [number, number, number], muted = [102, 116, 106] as [number, number, number];
-    const addContainedImage = (data: string, x: number, y: number, maxW: number, maxH: number) => {
-      const properties = doc.getImageProperties(data);
-      const scale = Math.min(maxW / properties.width, maxH / properties.height);
-      const width = properties.width * scale, height = properties.height * scale;
-      const type = data.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(data, type, x + (maxW-width)/2, y + (maxH-height)/2, width, height, undefined, 'FAST');
-      return height;
-    };
-    const header = (page: number, label: string) => {
-      doc.setDrawColor(219, 215, 202); doc.line(margin, 15, W-margin, 15);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...muted);
-      doc.text(report.institution || 'Faculty events report', margin, 11);
-      doc.text(label, W-margin, 11, { align: 'right' });
-      doc.setDrawColor(219, 215, 202); doc.line(margin, H-15, W-margin, H-15);
-      doc.setFontSize(8); doc.text(`${report.department || 'Department'}  ·  ${page}`, margin, H-9);
-    };
-    // Cover
-    doc.setFillColor(...green); doc.rect(0, 0, W, 110, 'F');
-    doc.setFillColor(...gold); doc.rect(0, 108, W, 2, 'F');
-    if (report.logo) try { addContainedImage(report.logo, margin, 22, 24, 24); } catch { /* unsupported logo encoding */ }
-    doc.setTextColor(232, 219, 183); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-    doc.text((report.institution || 'ACADEMIC EVENTS').toUpperCase(), margin, 60);
-    doc.setTextColor(255, 255, 247); doc.setFont('times', 'bold'); doc.setFontSize(29);
-    const titleLines = doc.splitTextToSize(report.title || 'Faculty Events Newsletter', W - margin*2);
-    doc.text(titleLines.slice(0,2), margin, 78);
-    doc.setTextColor(229, 226, 210); doc.setFont('helvetica', 'normal'); doc.setFontSize(12);
-    doc.text(report.subtitle || report.department || 'Events and activities', margin, 101);
-    doc.setTextColor(...green); doc.setFont('times', 'normal'); doc.setFontSize(22); doc.text('A term in review', margin, 142);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(...muted);
-    doc.text([report.academicYear, report.period].filter(Boolean).join('  ·  ') || 'Reporting period not specified', margin, 152);
-    doc.setDrawColor(...gold); doc.line(margin, 164, margin+38, 164);
-    doc.setFontSize(10); doc.setTextColor(73, 88, 79);
-    doc.text(`${events.length} events recorded  ·  ${categories.length} categories`, margin, 177);
-    doc.setFontSize(9); doc.setTextColor(...muted);
-    doc.text('Prepared from locally reviewed event materials.', margin, H-24);
-    // Overview page and horizontal category chart
-    doc.addPage(); header(2, 'Overview');
-    doc.setFont('times','bold'); doc.setFontSize(23); doc.setTextColor(...green); doc.text('Activity at a glance', margin, 33);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(...muted); doc.text('A summary of the current reviewed event register.', margin, 41);
-    const metricW = (W-margin*2-8)/3;
-    [['EVENTS', String(events.length)], ['CATEGORIES', String(categories.filter(c=>events.some(e=>e.category===c.id)).length)], ['NEEDS REVIEW', String(needsReview.length)]].forEach(([label,value], i) => {
-      const x=margin+i*(metricW+4); doc.setFillColor(246,244,236); doc.roundedRect(x,52,metricW,29,2,2,'F');
-      doc.setFontSize(8); doc.setTextColor(...muted); doc.text(label,x+5,61);
-      doc.setFont('times','bold'); doc.setFontSize(18); doc.setTextColor(...green); doc.text(value,x+5,75);
-      doc.setFont('helvetica','normal');
-    });
-    doc.setFont('times','bold'); doc.setFontSize(15); doc.setTextColor(...green); doc.text('Event distribution by category', margin, 101);
-    const liveCats = categories.filter(c => events.some(e => e.category === c.id));
-    const pieCanvas = document.createElement('canvas');
-    pieCanvas.width = 420; pieCanvas.height = 420;
-    const pieContext = pieCanvas.getContext('2d');
-    if (pieContext && events.length) {
-      const center = 210, radius = 190;
-      let angle = -Math.PI / 2;
-      liveCats.forEach((category,index) => {
-        const count = events.filter(event => event.category === category.id).length;
-        const end = angle + count / events.length * Math.PI * 2;
-        pieContext.beginPath(); pieContext.moveTo(center,center); pieContext.arc(center,center,radius,angle,end); pieContext.closePath();
-        const hex = chartColors[categories.findIndex(item => item.id === category.id) % chartColors.length];
-        pieContext.fillStyle = hex; pieContext.fill();
-        angle = end;
-      });
-      pieContext.beginPath(); pieContext.arc(center,center,112,0,Math.PI*2); pieContext.fillStyle = '#fffefb'; pieContext.fill();
-      pieContext.textAlign = 'center'; pieContext.fillStyle = '#31564a'; pieContext.font = 'bold 48px sans-serif'; pieContext.fillText(String(events.length),center,204);
-      pieContext.fillStyle = '#68766c'; pieContext.font = '20px sans-serif'; pieContext.fillText('EVENTS',center,237);
-      doc.addImage(pieCanvas.toDataURL('image/png'),'PNG',margin+2,111,69,69,undefined,'FAST');
+    try {
+      const blob = await buildNewsletterPdf(report, events, categories);
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(URL.createObjectURL(blob));
+      setPage('report');
+      notify('Newsletter PDF preview is ready.');
+    } catch {
+      notify('PDF generation failed. Check the photos and publication details, then try again.');
     }
-    liveCats.forEach((c,i) => {
-      const y=116+i*15, count=events.filter(e=>e.category===c.id).length;
-      const color=chartColors[categories.findIndex(item=>item.id===c.id)%chartColors.length];
-      const rgb=[parseInt(color.slice(1,3),16),parseInt(color.slice(3,5),16),parseInt(color.slice(5,7),16)] as [number,number,number];
-      doc.setFillColor(...rgb); doc.circle(margin+78,y+1,1.7,'F');
-      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(72,88,78);
-      doc.text(c.name.slice(0,40), margin+83, y+4);
-      doc.setFont('helvetica','bold'); doc.setTextColor(...green); doc.text(String(count), W-margin, y+4, {align:'right'});
-    });
-    let pageNum = 3;
-    for (const category of categories.filter(c=>events.some(e=>e.category===c.id))) {
-      doc.addPage(); header(pageNum, category.name);
-      doc.setFont('times','bold'); doc.setFontSize(22); doc.setTextColor(...green); doc.text(category.name, margin, 33);
-      const selected = events.filter(e=>e.category===category.id).sort((a,b)=>a.order-b.order);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...muted);
-      doc.text(`${selected.length} ${selected.length===1?'event':'events'} in this category`, margin, 41);
-      let y=55;
-      const ensureRoom = (height:number) => {
-        if (y + height > H - 21) { doc.addPage(); pageNum++; header(pageNum,category.name); y=27; }
-      };
-      const writeWrapped = (text:string,font:'helvetica'|'times',style:'normal'|'bold',size:number,color:[number,number,number],width:number,lineHeight:number) => {
-        if (!text) return;
-        doc.setFont(font,style); doc.setFontSize(size); doc.setTextColor(...color);
-        const lines=doc.splitTextToSize(text,width) as string[];
-        for (const line of lines) { ensureRoom(lineHeight+1); doc.text(line,margin+7,y); y+=lineHeight; }
-      };
-      for (const event of selected) {
-        ensureRoom(20);
-        doc.setDrawColor(224,220,209); doc.line(margin,y,W-margin,y);
-        doc.setFillColor(...gold); doc.circle(margin+2,y+8,1.2,'F');
-        y+=5;
-        writeWrapped(event.name || 'Untitled event','times','bold',13,green,W-margin*2-9,5.5);
-        const details=[event.date,event.time,event.venue].filter(Boolean).join('  ·  ');
-        writeWrapped(details,'helvetica','bold',8,muted,W-margin*2-9,4.2);
-        const facts=[
-          event.organizer&&`Organizer: ${event.organizer}`,
-          event.department&&`Department: ${event.department}`,
-          event.club&&`Club / chapter: ${event.club}`,
-          event.participants&&`Participants: ${event.participants}`,
-          event.teamSize&&`Team size: ${event.teamSize}`,
-        ].filter(Boolean).join('  ·  ');
-        writeWrapped(facts,'helvetica','normal',8,muted,W-margin*2-9,4.2);
-        writeWrapped(event.description,'helvetica','normal',9,[70,82,74],W-margin*2-9,4.6);
-        if (event.images.length) {
-          const columns=event.images.length===1?1:event.images.length===2?2:3;
-          const maxW=columns===1?135:columns===2?80:48;
-          const maxH=columns===1?68:columns===2?45:30;
-          const gap=columns===2?5:4;
-          for (let imageStart=0;imageStart<event.images.length;imageStart+=columns) {
-            ensureRoom(maxH+6);
-            let rowHeight=0;
-            event.images.slice(imageStart,imageStart+columns).forEach((img,imageIndex) => {
-              const photoIndex=imageStart+imageIndex;
-            try {
-                const x=margin+7+imageIndex*(maxW+gap);
-                rowHeight=Math.max(rowHeight,addContainedImage(img,x,y,maxW,maxH));
-            } catch { /* skip images the browser cannot embed */ }
-            });
-            y+=rowHeight+4;
-          }
-        }
-        if (eventNeedsReview(event)) { ensureRoom(6); doc.setFontSize(7); doc.setTextColor(153,112,50); doc.text('Details marked for review in source workspace',margin+7,y); y+=5; }
-        y+=6;
-      }
-      pageNum++;
-    }
-    // Refresh page count in consistent footer
-    const actual = doc.getNumberOfPages();
-    doc.setPage(1); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
-    doc.text(`1 / ${actual}`,W-margin,H-24,{align:'right'});
-    for (let p=2;p<=actual;p++) {
-      doc.setPage(p); doc.setDrawColor(219,215,202); doc.line(margin,H-15,W-margin,H-15);
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
-      doc.text(`${report.department || 'Department'}  ·  ${p}`,margin,H-9);
-      doc.text(`${p} / ${actual}`,W-margin,H-9,{align:'right'});
-    }
-    const blob = doc.output('blob');
-    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-    setPdfUrl(URL.createObjectURL(blob));
-    setPage('report'); notify(missingReport.length ? 'PDF ready. Some report details are incomplete.' : 'PDF preview is ready.');
   };
 
   const navItems: { id: Page; title: string; icon: typeof Upload; n: string }[] = [
@@ -392,7 +306,7 @@ function App() {
 
   return <div className="studio">
     <aside className="rail">
-      <div className="brand"><div className="brand-mark"><BookOpen size={18}/></div><div><div className="brand-name">Fieldnotes</div><div className="brand-sub">Event newsletter studio</div></div></div>
+      <div className="brand"><div className="brand-mark"><BookOpen size={18}/></div><div><div className="brand-name">Newsletter Studio</div><div className="brand-sub">Event publication builder</div></div></div>
       <div className="rail-label">Workspace</div>
       <div className="nav-row">{navItems.map((n)=><button key={n.id} className={`nav-item ${page===n.id?'active':''}`} onClick={()=>setPage(n.id)} data-testid={`nav-${n.id}`} aria-current={page===n.id?'page':undefined}><span className="step-num">{n.n}</span><n.icon size={16}/><span>{n.title}</span></button>)}</div>
       <div className="rail-label" style={{marginTop:20}}>Configure</div>
@@ -403,11 +317,11 @@ function App() {
     <main className="main-area">
       <header className="topbar"><div className="crumb"><span>Newsletter studio</span><ChevronRight size={13}/><b>{pageNames[page]}</b></div><div style={{display:'flex',alignItems:'center',gap:10}}><button className="btn small" onClick={()=>setModal('new-project')} data-testid="button-new-project-global"><RotateCcw size={13}/> New project</button><span className="session-pill"><i/> Local session only</span></div></header>
       {page==='upload' && <section className="page">
-        <div className="page-head"><div><div className="eyebrow">Private workspace / Step 01</div><h1>Gather the semester.</h1><p className="lede">Bring event briefs, flyers and schedules together. Fieldnotes reads them on this device and gives you a careful first draft to review.</p></div><div className="head-actions"><button className="btn" onClick={()=>setModal('new-project')} data-testid="button-new-project"><RotateCcw size={15}/> New project</button>{events.length>0&&<button className="btn primary" onClick={()=>setPage('review')}>Review {events.length} event{events.length===1?'':'s'} <ChevronRight size={15}/></button>}</div></div>
+        <div className="page-head"><div><div className="eyebrow">Private workspace / Step 01</div><h1>Build the next issue.</h1><p className="lede">Start with the newsletter data-format DOCX. Its rows, descriptions and embedded photos are imported together, then grouped into the reference publication sections.</p></div><div className="head-actions"><button className="btn" onClick={()=>setModal('new-project')} data-testid="button-new-project"><RotateCcw size={15}/> New project</button>{events.length>0&&<button className="btn primary" onClick={()=>setPage('review')}>Review {events.length} event{events.length===1?'':'s'} <ChevronRight size={15}/></button>}</div></div>
         <div className="upload-grid">
           <div>
             <div className={`dropzone ${dragging?'dragging':''}`} onDragOver={e=>{e.preventDefault();setDragging(true)}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);void addFiles(e.dataTransfer.files)}} data-testid="dropzone-files">
-              <div className="drop-icon"><CloudUpload size={23}/></div><h3>Drop source files here</h3><p>PDF, Word documents, JPG or PNG · processed locally in your browser</p>
+              <div className="drop-icon"><CloudUpload size={23}/></div><h3>Drop your newsletter data form here</h3><p>DOCX is best for matching each event with its photos · PDF, Word, JPG or PNG also supported · processed locally</p>
               <button className="btn primary" onClick={()=>fileRef.current?.click()} disabled={busy} data-testid="button-choose-files"><Plus size={15}/> Choose files</button>
               <input ref={fileRef} type="file" multiple accept=".pdf,.docx,.jpg,.jpeg,.png" hidden onChange={e=>{if(e.target.files) void addFiles(e.target.files);e.target.value=''}} data-testid="input-files"/>
             </div>
@@ -504,7 +418,7 @@ function App() {
       </section>}
 
       {page==='report' && <section className="page">
-        <div className="page-head"><div><div className="eyebrow">Step 04 / Publication details</div><h1>Give the report its frame.</h1><p className="lede">Add publication details and generate an actual PDF from the current, edited event register. Incomplete details are flagged, never fabricated.</p></div><div className="head-actions"><button className="btn" onClick={()=>setPage('dashboard')}><BarChart3 size={15}/> Dashboard</button><button className="btn primary" onClick={()=>void generatePdf()} disabled={!events.length} data-testid="button-generate-pdf"><Sparkles size={15}/> Generate PDF</button></div></div>
+        <div className="page-head"><div><div className="eyebrow">Step 04 / Publication details</div><h1>Set up this newsletter issue.</h1><p className="lede">Add the issue details and editable front matter, upload the college and department marks, then generate a magazine-style PDF from the reviewed event register.</p></div><div className="head-actions"><button className="btn" onClick={()=>setPage('dashboard')}><BarChart3 size={15}/> Dashboard</button><button className="btn primary" onClick={()=>void generatePdf()} disabled={!events.length} data-testid="button-generate-pdf"><Sparkles size={15}/> Generate PDF</button></div></div>
         <div className="settings-columns">
           <div>
             <div className="panel panel-pad"><div className="section-head" style={{margin:'0 0 17px'}}><h3>Publication details</h3><span>Optional, but recommended</span></div>
@@ -515,20 +429,73 @@ function App() {
                 <div className="field"><label htmlFor="year">Academic year</label><input id="year" value={report.academicYear} onChange={e=>setReport({...report,academicYear:e.target.value})} placeholder="e.g. 2024–25"/></div>
                 <div className="field"><label htmlFor="period">Reporting period</label><input id="period" value={report.period} onChange={e=>setReport({...report,period:e.target.value})} placeholder="e.g. Autumn semester"/></div>
                 <div className="field full"><label htmlFor="subtitle">Subtitle</label><input id="subtitle" value={report.subtitle} onChange={e=>setReport({...report,subtitle:e.target.value})} placeholder="Optional cover line"/></div>
-                <div className="field full">
-                  <label>Institution logo</label>
-                  <div style={{display:'flex',gap:12,alignItems:'center'}}>
+              </div>
+            </div>
+            <div className="panel panel-pad" style={{marginTop:14}}>
+              <div className="section-head" style={{margin:'0 0 14px'}}><h3>Cover and marks</h3><span>Images stay in this session</span></div>
+              <div className="field-grid">
+                <div className="field">
+                  <label htmlFor="institution-logo">Institution logo</label>
+                  <div className="asset-upload">
                     {report.logo && <img className="logo-preview" src={report.logo} alt="Institution logo preview"/>}
-                    <button className="btn small" onClick={()=>logoRef.current?.click()}><ImagePlus size={14}/>{report.logo?'Replace logo':'Add logo'}</button>
-                    {report.logo && <button className="btn small danger" onClick={()=>{setReport({...report,logo:''});setLogoName('')}}>Remove</button>}
-                    <input ref={logoRef} hidden type="file" accept="image/png,image/jpeg" onChange={async e=>{
+                    <div className="asset-actions">
+                      <button className="btn small" onClick={()=>logoRef.current?.click()}><ImagePlus size={14}/>{report.logo?'Replace logo':'Add logo'}</button>
+                      {report.logo && <button className="btn small danger" onClick={()=>{setReport({...report,logo:''});setLogoName('')}}>Remove</button>}
+                      {logoName&&<small>{logoName}</small>}
+                    </div>
+                    <input id="institution-logo" ref={logoRef} hidden type="file" accept="image/png,image/jpeg" onChange={async e=>{
                       const f=e.target.files?.[0];
                       if(f){setReport({...report,logo:await imageToDataUrl(f)});setLogoName(f.name);}
                       e.target.value='';
                     }} data-testid="input-logo"/>
                   </div>
-                  {logoName&&<small style={{color:'#849087'}}>{logoName} · in session memory</small>}
                 </div>
+                <div className="field">
+                  <label htmlFor="department-logo">Department mark</label>
+                  <div className="asset-upload">
+                    {report.departmentLogo && <img className="logo-preview" src={report.departmentLogo} alt="Department logo preview"/>}
+                    <div className="asset-actions">
+                      <button className="btn small" onClick={()=>departmentLogoRef.current?.click()}><ImagePlus size={14}/>{report.departmentLogo?'Replace mark':'Add mark'}</button>
+                      {report.departmentLogo && <button className="btn small danger" onClick={()=>{setReport({...report,departmentLogo:''});setDepartmentLogoName('')}}>Remove</button>}
+                      {departmentLogoName&&<small>{departmentLogoName}</small>}
+                    </div>
+                    <input id="department-logo" ref={departmentLogoRef} hidden type="file" accept="image/png,image/jpeg" onChange={async e=>{
+                      const f=e.target.files?.[0];
+                      if(f){setReport({...report,departmentLogo:await imageToDataUrl(f)});setDepartmentLogoName(f.name);}
+                      e.target.value='';
+                    }}/>
+                  </div>
+                </div>
+                <div className="field full">
+                  <label htmlFor="cover-photo">Cover photograph</label>
+                  <div className="asset-upload">
+                    {report.coverImage && <img className="cover-preview" src={report.coverImage} alt="Newsletter cover preview"/>}
+                    <div className="asset-actions">
+                      <button className="btn small" onClick={()=>coverImageRef.current?.click()}><ImagePlus size={14}/>{report.coverImage?'Replace photo':'Add campus photo'}</button>
+                      {report.coverImage && <button className="btn small danger" onClick={()=>{setReport({...report,coverImage:''});setCoverImageName('')}}>Remove</button>}
+                      {coverImageName&&<small>{coverImageName}</small>}
+                    </div>
+                    <input id="cover-photo" ref={coverImageRef} hidden type="file" accept="image/png,image/jpeg" onChange={async e=>{
+                      const f=e.target.files?.[0];
+                      if(f){setReport({...report,coverImage:await imageToCoverDataUrl(f)});setCoverImageName(f.name);}
+                      e.target.value='';
+                    }}/>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="panel panel-pad" style={{marginTop:14}}>
+              <div className="section-head" style={{margin:'0 0 14px'}}><h3>Cover and front matter</h3><span>Enter the text to include in this issue</span></div>
+              <div className="field-grid">
+                <div className="field full"><label htmlFor="tagline">Cover statement</label><input id="tagline" value={report.tagline} onChange={e=>setReport({...report,tagline:e.target.value})}/></div>
+                <div className="field full"><label htmlFor="college-profile">College profile</label><textarea id="college-profile" rows={5} value={report.collegeProfile} onChange={e=>setReport({...report,collegeProfile:e.target.value})}/></div>
+                <div className="field full"><label htmlFor="department-tagline">Department introduction</label><input id="department-tagline" value={report.departmentTagline} onChange={e=>setReport({...report,departmentTagline:e.target.value})}/></div>
+                <div className="field full"><label htmlFor="vision">Department vision</label><textarea id="vision" rows={3} value={report.vision} onChange={e=>setReport({...report,vision:e.target.value})}/></div>
+                <div className="field full"><label htmlFor="mission">Department mission</label><textarea id="mission" rows={4} value={report.mission} onChange={e=>setReport({...report,mission:e.target.value})}/></div>
+                <div className="field full"><label htmlFor="hod-message">Message from the HOD</label><textarea id="hod-message" rows={6} value={report.hodMessage} onChange={e=>setReport({...report,hodMessage:e.target.value})}/></div>
+                <div className="field"><label htmlFor="hod-name">HOD name</label><input id="hod-name" value={report.hodName} onChange={e=>setReport({...report,hodName:e.target.value})}/></div>
+                <div className="field"><label htmlFor="hod-role">HOD role</label><input id="hod-role" value={report.hodRole} onChange={e=>setReport({...report,hodRole:e.target.value})}/></div>
+                <div className="field full"><label htmlFor="editorial-team">Editorial team</label><textarea id="editorial-team" rows={4} value={report.editorialTeam} onChange={e=>setReport({...report,editorialTeam:e.target.value})}/></div>
               </div>
             </div>
             <div className="panel panel-pad" style={{marginTop:14}}><div className="section-head" style={{margin:'0 0 6px'}}><h3>Before you publish</h3><span>{missingReport.length?`${missingReport.length} item${missingReport.length===1?'':'s'} to check`:'Details complete'}</span></div>
@@ -538,7 +505,7 @@ function App() {
           </div>
           <div className="preview-wrap">
             <div className="preview-toolbar"><div><strong style={{fontSize:12}}>PDF preview</strong><div style={{fontSize:10,color:'#818b82',marginTop:3}}>{pdfUrl?'Generated from current state':'Generate to preview'}</div></div>{pdfUrl&&<a href={pdfUrl} download={`${(report.title||'newsletter').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.pdf`} className="btn small primary" data-testid="link-download-pdf"><Download size={14}/> Download PDF</a>}</div>
-            {pdfUrl?<iframe className="pdf-frame" src={pdfUrl} title="Generated newsletter PDF preview" data-testid="frame-pdf-preview"/>:<div className="no-preview"><BookOpen size={27}/><strong>Your publication takes shape here.</strong><span>Generate a PDF to preview cover, statistics and category sections.</span><span style={{fontSize:10}}>No files leave this browser.</span></div>}
+            {pdfUrl?<iframe className="pdf-frame" src={pdfUrl} title="Generated newsletter PDF preview" data-testid="frame-pdf-preview"/>:<div className="no-preview"><BookOpen size={27}/><strong>Your publication takes shape here.</strong><span>Generate a PDF to preview the cover, department profile and event sections.</span><span style={{fontSize:10}}>No files leave this browser.</span></div>}
           </div>
         </div>
       </section>}
@@ -546,7 +513,7 @@ function App() {
 
     {(modal==='edit'||modal==='add')&&activeEvent&&<EventModal event={activeEvent} categories={categories} onClose={()=>{setModal(null);setActiveEvent(null)}} onSave={saveEvent} onImages={addEventImages} title={modal==='add'?'Add an event':'Review event details'} />}
     {modal==='delete'&&<ConfirmModal title="Remove this event?" detail="This event will be removed from the current session register. The source file remains available." cancel={()=>setModal(null)} confirm={deleteEvent} confirmText="Remove event"/>}
-    {modal==='clear'&&<ConfirmModal title="Clear source files?" detail="All uploaded files and their extracted event records will be removed from this session. This cannot be undone." cancel={()=>setModal(null)} confirm={()=>{setFiles([]);setEvents([]);setDuplicateQueue([]);setPdfUrl('');setModal(null);notify('Files and extracted records cleared.')}} confirmText="Clear files"/>}
+    {modal==='clear'&&<ConfirmModal title="Clear source files?" detail="All uploaded files and their extracted event records will be removed from this session. This cannot be undone." cancel={()=>setModal(null)} confirm={()=>{eventsRef.current=[];setFiles([]);setEvents([]);setDuplicateQueue([]);setPdfUrl('');setModal(null);notify('Files and extracted records cleared.')}} confirmText="Clear files"/>}
     {modal==='new-project'&&<ConfirmModal title="Start a new project?" detail="The current files, event edits, report details and preview will be cleared from memory. This action cannot be undone." cancel={()=>setModal(null)} confirm={startNewProject} confirmText="Clear workspace"/>}
     {modal==='duplicate'&&duplicateQueue[0]&&<div className="modal-backdrop" role="presentation"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-title"><div className="modal-head"><div><div className="eyebrow">Possible duplicate · {duplicateQueue.length} remaining</div><h2 id="duplicate-title">This event may already be here.</h2><p>Review both records. The match is based on event-name and detail similarity.</p></div><button className="btn icon" onClick={()=>resolveDuplicate(false)} aria-label="Skip candidate"><X size={16}/></button></div><div className="duplicate-box"><strong>Existing event</strong><div>{duplicateQueue[0].match.name}</div><small>{duplicateQueue[0].match.date||'No date recorded'} · {duplicateQueue[0].match.sourceFile}</small></div><div className="duplicate-box"><strong>New source wording</strong><div>{duplicateQueue[0].candidate.name}</div><small>{duplicateQueue[0].candidate.date||'No date recorded'} · {duplicateQueue[0].candidate.sourceFile}</small></div><div className="modal-footer"><button className="btn" onClick={()=>resolveDuplicate(false)}>Discard candidate</button><div><button className="btn primary" onClick={()=>{resolveDuplicate(true);notify('Candidate added for review.')}}>Keep both events</button></div></div></div></div>}
     {toast&&<div className="toast-note" role="status">{toast}</div>}
