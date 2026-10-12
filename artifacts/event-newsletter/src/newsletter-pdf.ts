@@ -81,20 +81,45 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     const panelWidth = contentWidth - 4;
     const padding = 5;
     const bodyLines = wrap(text, 'times', 'normal', fontSize, panelWidth - padding * 2);
-    const panelHeight = padding + 4.2 + bodyLines.length * lineHeight + padding;
-    if (y + panelHeight > (options.maxY ?? pageHeight - 15)) return null;
-    doc.setDrawColor(...rule);
-    doc.setLineWidth(0.48);
-    doc.roundedRect(panelX, y, panelWidth, panelHeight, 1.8, 1.8, 'S');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.4);
-    doc.setTextColor(...gold);
-    doc.text(heading.toUpperCase(), panelX + padding, y + padding + 2.3);
-    doc.setFont('times', 'normal');
-    doc.setFontSize(fontSize);
-    doc.setTextColor(...ink);
-    bodyLines.forEach((line, index) => doc.text(line, panelX + padding, y + padding + 8 + index * lineHeight));
-    return y + panelHeight + 4;
+    const maxY = options.maxY ?? pageHeight - 15;
+    const minimumPanelHeight = padding + 4.2 + lineHeight + padding;
+    let cursorY = y;
+    let lineIndex = 0;
+    while (lineIndex < bodyLines.length) {
+      if (cursorY + minimumPanelHeight > maxY) {
+        addContentPage(`${heading} - Continued`);
+        cursorY = 42;
+      }
+      const lineCapacity = Math.max(1, Math.floor((maxY - cursorY - padding * 2 - 4.2) / lineHeight));
+      const chunk = bodyLines.slice(lineIndex, lineIndex + lineCapacity);
+      const panelHeight = padding + 4.2 + chunk.length * lineHeight + padding;
+      doc.setDrawColor(...rule);
+      doc.setLineWidth(0.48);
+      doc.roundedRect(panelX, cursorY, panelWidth, panelHeight, 1.8, 1.8, 'S');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.4);
+      doc.setTextColor(...gold);
+      doc.text((lineIndex ? `${heading} (continued)` : heading).toUpperCase(), panelX + padding, cursorY + padding + 2.3);
+      doc.setFont('times', 'normal');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...ink);
+      chunk.forEach((line, index) => doc.text(line, panelX + padding, cursorY + padding + 8 + index * lineHeight));
+      lineIndex += chunk.length;
+      cursorY += panelHeight + 4;
+      if (lineIndex < bodyLines.length) {
+        addContentPage(`${heading} - Continued`);
+        cursorY = 42;
+      }
+    }
+    return cursorY;
+  };
+  const drawPageFrame = () => {
+    doc.setDrawColor(112, 110, 101);
+    doc.setLineWidth(0.3);
+    doc.rect(7.5, 7.5, pageWidth - 15, pageHeight - 15);
+    doc.setDrawColor(177, 173, 161);
+    doc.setLineWidth(0.2);
+    doc.rect(9.5, 9.5, pageWidth - 19, pageHeight - 19);
   };
   const drawFooter = (page: number, total: number) => {
     doc.setDrawColor(150, 147, 137);
@@ -142,8 +167,9 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
   coverY += 5;
   doc.setFont('times', 'normal');
   doc.setFontSize(10);
-  doc.text(report.subtitle || 'Department Newsletter', pageWidth / 2, coverY, { align: 'center' });
-  coverY += 11;
+   const subtitleLines = wrap(report.subtitle || 'Department Newsletter', 'times', 'normal', 10, contentWidth - 18);
+   subtitleLines.forEach((line, index) => doc.text(line, pageWidth / 2, coverY + index * 4.5, { align: 'center' }));
+   coverY += subtitleLines.length * 4.5 + 6;
   doc.setFont('times', 'bold');
   doc.setFontSize(23);
   doc.setTextColor(...ink);
@@ -157,8 +183,9 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     report.period,
     report.academicYear ? `AY: ${report.academicYear}` : '',
   ].filter(Boolean);
-  if (issueLines.length) doc.text(issueLines.join('  |  '), pageWidth / 2, coverY, { align: 'center' });
-  coverY += 7;
+   const wrappedIssueLines = wrap(issueLines.join('  |  '), 'times', 'normal', 9.5, contentWidth - 18);
+   wrappedIssueLines.forEach((line, index) => doc.text(line, pageWidth / 2, coverY + index * 4.2, { align: 'center' }));
+   coverY += wrappedIssueLines.length * 4.2 + 3;
   if (report.tagline.trim()) {
     doc.setDrawColor(...rule);
     doc.setLineWidth(0.5);
@@ -166,8 +193,8 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     doc.setFont('times', 'bold');
     doc.setFontSize(12.5);
     const tagline = wrap(report.tagline, 'times', 'bold', 12.5, contentWidth - 18);
-    tagline.slice(0, 2).forEach((line, index) => doc.text(line.toUpperCase(), pageWidth / 2, coverY + 6 + index * 5, { align: 'center' }));
-    coverY += 10 + Math.max(0, tagline.length - 1) * 5;
+     tagline.forEach((line, index) => doc.text(line.toUpperCase(), pageWidth / 2, coverY + 6 + index * 5, { align: 'center' }));
+     coverY += 10 + Math.max(0, tagline.length - 1) * 5;
     doc.setLineWidth(0.5);
     doc.line(margin + 5, coverY, pageWidth - margin - 5, coverY);
     coverY += 4;
@@ -198,21 +225,22 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
       doc.setFontSize(11);
       doc.setTextColor(...gray);
       const departmentTagline = wrap(report.departmentTagline, 'times', 'italic', 11, contentWidth - 8);
-      departmentTagline.slice(0, 2).forEach((line, index) => doc.text(line, pageWidth / 2, aboutY + index * 5.2, { align: 'center' }));
+       departmentTagline.forEach((line, index) => doc.text(line, pageWidth / 2, aboutY + index * 5.2, { align: 'center' }));
       aboutY += 8 + departmentTagline.length * 5;
     }
     let nextY = drawPanel('Vision of the Department', report.vision, aboutY);
-    if (nextY === null) { addContentPage('About Department - Continued'); aboutY = 42; nextY = drawPanel('Vision of the Department', report.vision, aboutY); }
-    aboutY = nextY ?? aboutY;
+    aboutY = nextY;
     nextY = drawPanel('Mission of the Department', report.mission, aboutY);
-    if (nextY === null) { addContentPage('About Department - Continued'); aboutY = 42; nextY = drawPanel('Mission of the Department', report.mission, aboutY); }
-    aboutY = nextY ?? aboutY;
+    aboutY = nextY;
     nextY = drawPanel('A Message from the Head of Department', report.hodMessage, aboutY, { fontSize: 8.4, lineHeight: 4 });
-    if (nextY === null) { addContentPage('About Department - Continued'); aboutY = 42; nextY = drawPanel('A Message from the Head of Department', report.hodMessage, aboutY, { fontSize: 8.4, lineHeight: 4 }); }
-    aboutY = nextY ?? aboutY;
+    aboutY = nextY;
     const signature = [report.hodName, report.hodRole].filter(Boolean).join('\n');
     if (signature) {
       const signatureLines = signature.split('\n');
+      if (aboutY + signatureLines.length * 4 + 4 > pageHeight - 15) {
+        addContentPage('About Department - Continued');
+        aboutY = 42;
+      }
       signatureLines.forEach((line, index) => {
         doc.setFont('times', index ? 'italic' : 'bold');
         doc.setFontSize(8.2);
@@ -222,10 +250,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
       aboutY += signatureLines.length * 4 + 3;
     }
     nextY = drawPanel('Editorial Team', report.editorialTeam, aboutY, { fontSize: 8, lineHeight: 3.7 });
-    if (nextY === null && report.editorialTeam) {
-      addContentPage('Editorial Team');
-      drawPanel('Editorial Team', report.editorialTeam, 42, { fontSize: 8, lineHeight: 3.7 });
-    }
+    aboutY = nextY;
   }
 
   const selectedCategories = categories.filter(category => events.some(event => event.category === category.id));
@@ -410,6 +435,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
   const pageCount = doc.getNumberOfPages();
   for (let page = 1; page <= pageCount; page += 1) {
     doc.setPage(page);
+    drawPageFrame();
     drawFooter(page, pageCount);
   }
   return doc.output('blob');

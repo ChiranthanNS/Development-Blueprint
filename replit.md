@@ -1,45 +1,30 @@
-# [Project name]
+# Event Newsletter Studio
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Browser-based event review and newsletter PDF builder. The app is intentionally local-first and keeps each working session in browser memory.
 
-## Run & Operate
+## Run and verify
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run dev` — local development server
+- `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run typecheck` — typecheck the app
+- `pnpm --filter @workspace/event-newsletter run test` — importer and transformation tests
+- `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run build` — production frontend build
+- The Replit preview workflow is `artifacts/event-newsletter: web`.
 
-## Stack
+## Project map
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- `artifacts/event-newsletter/src/extract.ts` — local PDF/DOCX/image reading, newsletter-table parsing, and event suggestions.
+- `artifacts/event-newsletter/src/App.tsx` — upload/review flow, duplicate decisions, category management, and PDF generation.
+- `artifacts/event-newsletter/src/newsletter-pdf.ts` — paginated newsletter output.
+- `artifacts/event-newsletter/src/studio-types.ts` — shared event, report, and import-diagnostic types.
+- `artifacts/event-newsletter/test/` — parser and transformation regression tests.
 
-## Where things live
+## Data boundary
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+Do not add server storage, a database, or login for event data. Source files, extracted text, event records, photos, and generated PDFs must stay temporary in the browser session. Do not commit extracted event records or publication output as app defaults.
 
-## Architecture decisions
+## Import and output
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Prefer the provided data-format DOCX when row-to-photo relationships matter.
+- A recognized table must not fall back to generic text parsing just because it yields zero event rows.
+- Do not guess which event an unassociated photo belongs to; leave it unattached until the user chooses an event.
+- Generated previews must always correspond to the latest report, category, and event state. Long front-matter panels must continue onto another page rather than disappear.

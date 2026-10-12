@@ -44,6 +44,8 @@ The artifact is configured to build and serve the static site in `dist/public`. 
 4. Open **Report & PDF** to edit the issue information and front matter. Add the institution and department logos and a cover photograph to match the reference more closely.
 5. Download the PDF when it reflects the corrected event register. Any edits to events or report details invalidate the previous preview.
 
+For records with photos that cannot be matched confidently to a table row, the upload list keeps those photos separate and provides an event selector for manual assignment. Import diagnostics distinguish records added, photos extracted and matched, records needing review, duplicate candidates, unassigned photos, and unsupported images.
+
 ## Classification
 
 Classification is local and keyword-based. Matching phrases contribute their configured weights; the leading score and the gap to the next category inform the confidence estimate. **Other** is used when no configured term matches. Ambiguous, low-confidence, or incomplete records are flagged for manual review. Adjust the confidence threshold in **Categories & keywords**. Verify all extracted facts before publication.
@@ -67,5 +69,12 @@ No API configuration is required. `.env.example` is included as a note that this
 - `src/App.tsx` — workflow, event register, category configuration, dashboard, and PDF generation.
 - `src/extract.ts` — file validation, PDF/DOCX extraction, OCR, event parsing, and weighted classification.
 - `src/studio-types.ts` — event, category, report, and source-file types.
+- `src/studio-utils.ts` — duplicate matching and live category totals.
 - `src/studio.css` — application layout and responsive styles.
 - `src/index.css` — shared theme and base styles.
+
+## Verify
+
+- `pnpm --filter @workspace/event-newsletter run test` — parser, duplicate matching, and category-count tests.
+- `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run typecheck` — TypeScript validation.
+- `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run build` — production frontend build.

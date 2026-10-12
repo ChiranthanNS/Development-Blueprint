@@ -1,0 +1,166 @@
+# FINAL CONTINUATION PROMPT — COMPLETE AND VALIDATE EVENT NEWSLETTER STUDIO
+
+You are continuing the existing **Event Newsletter Studio** project in this repository:
+
+https://github.com/ChiranthanNS/Development-Blueprint
+
+The existing React + TypeScript + Vite application is already substantially implemented. Do NOT restart the project, replace its architecture, generate a new template, or rewrite working screens without a concrete reason.
+
+Your task is to finish, debug, validate, and polish the existing project so it reliably imports the provided data, lets the user review it, and generates a publication-quality newsletter PDF.
+
+## 1. START WITH A SHORT, TARGETED AUDIT
+
+Inspect the current versions of:
+
+- `artifacts/event-newsletter/src/App.tsx`
+- `artifacts/event-newsletter/src/extract.ts`
+- `artifacts/event-newsletter/src/newsletter-pdf.ts`
+- `artifacts/event-newsletter/src/studio-types.ts`
+- `artifacts/event-newsletter/src/studio.css`
+- `artifacts/event-newsletter/src/index.css`
+- `artifacts/event-newsletter/package.json`
+- `artifacts/event-newsletter/README.md`
+
+Reference assets are already in the repository's `attached_assets/` directory. Locate and use the existing copies of:
+
+1. The 24-page AIML-Gazette reference PDF, Volume 4, Issue 1, AY 2025–26.
+2. The 2025–26 Newsletter Data Format DOCX.
+
+Do not create duplicate copies of these large files.
+
+First, run the existing TypeScript type-check and production build using the repository's established pnpm workspace configuration. Run the application and identify actual problems. Do not rely on assumptions or documentation alone.
+
+Create a concise checklist of outstanding issues, then implement the fixes. Do not stop after producing a report.
+
+## 2. FIX DOCX TABLE EXTRACTION
+
+The supplied DOCX is the primary event-data source. Its columns correspond to:
+
+- Event Month
+- Event Type
+- Event Name
+- Event Images
+- Event Description
+
+Review the existing parser in `extract.ts`, especially merged cells, month headings, row parsing, and embedded image handling.
+
+Requirements:
+
+- Import each valid event row once.
+- Correctly inherit month and event type only when justified by the table structure.
+- Preserve the original event type, event name, month, full description, source filename, and source wording.
+- Support multiple JPG/PNG photographs associated with a single event.
+- Preserve the correct photograph-to-event relationship.
+- Handle merged cells, continuation rows, blank cells, multi-paragraph descriptions, and rows with missing dates.
+- Do not invent missing facts.
+- Do not create phantom events from table headings, layout fragments, or incomplete blank rows.
+- Do not discard valid records merely because some details are missing.
+- When a structured newsletter table has been recognized, do not independently import the same content a second time through general text extraction.
+- Do not silently discard potential duplicates. Keep the duplicate review feature working.
+
+Improve the extraction code with targeted changes. Avoid a complete rewrite unless the current implementation demonstrably cannot be repaired.
+
+## 3. MAKE IMPORT DIAGNOSTICS RELIABLE
+
+After processing a file, display accurate counts for:
+
+- Event records imported.
+- Photos extracted and associated.
+- Records requiring manual review.
+- Unsupported or failed image extraction.
+- Parsing warnings and processing errors.
+
+Ensure the reported counts correspond to the actual accepted records, rather than counting rejected candidates as successfully imported.
+
+If images cannot be associated with individual events, show a clear warning and provide a safe way to correct the association.
+
+## 4. VERIFY EVENT REVIEW AND CLASSIFICATION
+
+Preserve the existing review board, weighted keyword categorization, category configuration, duplicate detection, search, filtering, manual editing, event-photo editing, and drag-and-drop ordering.
+
+Check and fix these behaviours:
+
+- Editing an event updates the underlying record.
+- Changing a category updates category counts and dashboard data.
+- Adding or removing an event updates every relevant view.
+- Duplicate candidates can be reviewed without accidentally losing source data.
+- Missing dates, venues, descriptions, or other fields are flagged appropriately.
+- An event can be manually corrected and marked reviewed.
+- Reordering records is reflected in the final PDF.
+- Category changes and keyword settings are consistent with the displayed categorization.
+- No visible button or control is decorative or non-functional.
+
+Do not force fabricated values into missing fields simply to make records appear complete.
+
+## 5. MATCH THE REFERENCE NEWSLETTER IN THE GENERATED PDF
+
+Treat the existing AIML-Gazette reference PDF as the visual and structural source of truth.
+
+Inspect its actual rendered pages and improve `newsletter-pdf.ts` where necessary.
+
+The output should retain an academic newsletter appearance, including the applicable elements from the reference:
+
+- Institution and department masthead.
+- Institution and department logos.
+- Newsletter title, volume, issue, and academic year.
+- Cover and campus photograph.
+- College profile and department introduction.
+- Vision and mission.
+- Head of Department message.
+- Editorial team.
+- Clearly separated publication sections.
+- Readable event descriptions and photographs.
+- Student achievements, faculty achievements, and placement success.
+- Consistent page framing, typography, margins, page numbering, and footers.
+
+Do not blindly force all content into one fixed layout. Use layouts appropriate to the section.
+
+Improve PDF behaviour for:
+- Long titles and descriptions.
+- Empty optional fields.
+- Records with multiple photos.
+- Tall content cards.
+- Category sections spanning multiple pages.
+- Images that do not fit their frames.
+- Very long publication metadata.
+- Empty categories and small datasets.
+
+Prevent text, images, and panels from overflowing or being cut off at the page boundary. Do not leave large accidental blank areas when content could be arranged more effectively.
+
+Preserve proportions when drawing images. Use readable font sizes and sufficient spacing. If one event cannot fit on the remaining page, place it on a suitable new page rather than clipping it.
+
+Where information is missing from the source, leave a blank/optional area or clearly identify the missing information for the user. Never fabricate institutional statements, achievements, participant counts, or other facts.
+
+## 6. GUARANTEE THAT THE PDF USES THE LATEST DATA
+
+Trace the actual application flow from editing records to generating and previewing the PDF.
+
+Verify that the latest versions of all events, images, categories, ordering, logos, cover image, issue details, and front matter are passed into `buildNewsletterPdf`.
+
+Fix stale-preview or stale-state issues if found.
+
+After a relevant edit, the old preview must not be mistaken for the current document. Generate a fresh PDF from the current application state when the user requests it.
+
+Keep the current downloadable PDF workflow. Revoke obsolete object URLs safely and avoid unnecessary memory leaks.
+
+## 7. VALIDATE THE COMPLETE APPLICATION
+
+Use the existing project scripts. At minimum:
+
+1. Run the TypeScript type-check.
+2. Run the production build.
+3. Start the application.
+4. Test uploading the supplied DOCX.
+5. Verify event and photo counts.
+6. Correct at least one event and confirm that the correction reaches the PDF.
+7. Test category movement and ordering.
+8. Generate the PDF and inspect its rendered pages.
+9. Test downloading the generated PDF.
+10. Test starting a new project or clearing the session.
+11. Verify no runtime errors or broken primary controls occur during the tested workflow.
+
+Add automated tests for important parsing and transformation functions if the workspace supports them without excessive configuration. Prioritize tests for the DOCX row parser, month/type inheritance, duplicate handling, category distribution, and malformed or incomplete records.
+
+Do not report a test as passed unless you actually ran it. If an operation cannot be tested in the current environment, describe the limitation explicitly.
+
+## 8. PRESERVE PRIVACY AND DEPLOYMENT COMP

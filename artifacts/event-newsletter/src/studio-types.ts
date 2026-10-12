@@ -5,9 +5,27 @@ export type EventRecord = {
   organizer: string; department: string; club: string; participants: string; teamSize: string;
   category: string; images: string[]; confidence: number; score: number;
   classificationSource: string; needsReview: boolean; sourceFile: string; order: number;
+  sourceId?: string;
   sourceEventType?: string; sourceEventName?: string; sourceMonth?: string; sourceDescription?: string;
 };
-export type SourceFile = { id: string; file: File; status: 'ready' | 'working' | 'done' | 'warning' | 'error'; message?: string };
+export type SourceDiagnostics = {
+  importedRecords: number;
+  extractedPhotos: number;
+  associatedPhotos: number;
+  recordsNeedingReview: number;
+  duplicateCandidates: number;
+  unassignedPhotos: number;
+  unsupportedImages: number;
+  failedImages: number;
+};
+export type SourceFile = {
+  id: string;
+  file: File;
+  status: 'ready' | 'working' | 'done' | 'warning' | 'error';
+  message?: string;
+  diagnostics?: SourceDiagnostics;
+  unmatchedPhotos?: string[];
+};
 export type ReportInfo = {
   institution: string;
   department: string;

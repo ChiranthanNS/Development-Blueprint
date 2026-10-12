@@ -6,7 +6,23 @@ export const allowedFile = (file: File) => accepted.includes(file.type) || /\.(p
 
 export type ExtractedPage = { text: string; image?: string };
 export type NewsletterSourceRow = { month: string; eventType: string; eventName: string; description: string; images: string[] };
-export type LocalFileResult = { text: string; warning?: string; photos?: string[]; pages?: ExtractedPage[]; newsletterRows?: NewsletterSourceRow[] };
+export type NewsletterTableResult = {
+  recognized: boolean;
+  rows: NewsletterSourceRow[];
+  unsupportedImages: number;
+  unassociatedImages: string[];
+};
+export type LocalFileResult = {
+  text: string;
+  warning?: string;
+  photos?: string[];
+  pages?: ExtractedPage[];
+  newsletterRows?: NewsletterSourceRow[];
+  newsletterTableRecognized?: boolean;
+  unassociatedPhotos?: string[];
+  unsupportedImages?: number;
+  failedImages?: number;
+};
 
 const decodeHtmlEntities = (value: string) => value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
   const named: Record<string, string> = {
@@ -40,16 +56,17 @@ function cellsInHtmlRow(rowHtml: string) {
   }));
 }
 
-export function parseNewsletterTableHtml(html: string): { rows: NewsletterSourceRow[]; unsupportedImages: number } {
+export function parseNewsletterTableHtml(html: string): NewsletterTableResult {
   const tables = Array.from(html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table\s*>/gi), match => match[1]);
   const tableRows = tables.map(table => Array.from(table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi), match => match[1]));
   const tableIndex = tableRows.findIndex(rows => {
     const headers = cellsInHtmlRow(rows[0] || '').map(cell => cell.text.toLowerCase().replace(/[^a-z]+/g, ' ').trim());
     return headers.includes('event month') && headers.includes('event type') && headers.includes('event description');
   });
-  if (tableIndex < 0) return { rows: [], unsupportedImages: 0 };
+  if (tableIndex < 0) return { recognized: false, rows: [], unsupportedImages: 0, unassociatedImages: [] };
 
   const rows: NewsletterSourceRow[] = [];
+  const unassociatedImages: string[] = [];
   let currentMonth = '';
   let currentType = '';
   let unsupportedImages = 0;
@@ -59,19 +76,6 @@ export function parseNewsletterTableHtml(html: string): { rows: NewsletterSource
     const cells = cellsInHtmlRow(rowHtml);
     const values = cells.map(cell => cell.text);
     const allText = values.join(' ').trim();
-    if (cells.length <= 2 && !/<img\b/i.test(rowHtml) && monthHeading.test(allText)) {
-      currentMonth = allText.replace(/sepetember/i, 'September');
-      currentType = '';
-      continue;
-    }
-    if (cells.length < 4 || cells.length > 5) continue;
-    const compactRow = cells.length === 4;
-    if (compactRow) {
-      if (values[0]) currentType = values[0];
-    } else {
-      if (values[0]) currentMonth = values[0];
-      if (values[1]) currentType = values[1];
-    }
     const imageTags = Array.from(rowHtml.matchAll(/<img\b[^>]*>/gi), match => match[0]);
     const images = imageTags.flatMap(image => {
       const srcMatch = image.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
@@ -80,15 +84,34 @@ export function parseNewsletterTableHtml(html: string): { rows: NewsletterSource
       unsupportedImages += 1;
       return [];
     });
+    if (cells.length <= 2 && !imageTags.length && monthHeading.test(allText)) {
+      currentMonth = allText.replace(/sepetember/i, 'September');
+      currentType = '';
+      continue;
+    }
+    if (cells.length < 4 || cells.length > 5) {
+      unassociatedImages.push(...images);
+      continue;
+    }
+    const compactRow = cells.length === 4;
+    if (compactRow) {
+      if (values[0]) currentType = values[0];
+    } else {
+      if (values[0]) currentMonth = values[0];
+      if (values[1]) currentType = values[1];
+    }
     const description = cells.slice(compactRow ? 3 : 4).map(cell => cell.text).filter(Boolean).join('\n');
     const eventName = values[compactRow ? 1 : 2];
     const normalizedValues = values.map(value => value.toLowerCase().replace(/[^a-z]+/g, ' ').trim());
     if (normalizedValues[0] === 'event month' && normalizedValues[1] === 'event type') continue;
-    if (!description.trim() && !eventName.trim() && !images.length) continue;
+    if (!description.trim() && !eventName.trim()) {
+      unassociatedImages.push(...images);
+      continue;
+    }
     if (description.trim().length < 18 && !eventName.trim() && !images.length) continue;
     rows.push({ month: currentMonth, eventType: currentType, eventName, description, images });
   }
-  return { rows, unsupportedImages };
+  return { recognized: true, rows, unsupportedImages, unassociatedImages };
 }
 
 const fileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
@@ -203,7 +226,11 @@ export async function readLocalFile(file: File): Promise<LocalFileResult> {
     return {
       text: result.value.trim(),
       photos,
-      newsletterRows: structured.rows.length ? structured.rows : undefined,
+      newsletterRows: structured.recognized ? structured.rows : undefined,
+      newsletterTableRecognized: structured.recognized,
+      unassociatedPhotos: structured.unassociatedImages,
+      unsupportedImages: structured.unsupportedImages,
+      failedImages: 0,
       warning: warning || (!result.value.trim() ? 'The document contains no readable text.' : undefined),
     };
   }

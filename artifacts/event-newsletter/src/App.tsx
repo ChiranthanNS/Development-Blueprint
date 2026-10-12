@@ -4,7 +4,8 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 import NotFound from '@/pages/not-found';
 import { allowedFile, eventsFromNewsletterRows, eventsFromText, readLocalFile } from './extract';
 import { buildNewsletterPdf } from './newsletter-pdf';
-import type { Category, EventRecord, ReportInfo, SourceFile } from './studio-types';
+import type { Category, EventRecord, ReportInfo, SourceDiagnostics, SourceFile } from './studio-types';
+import { categoryDistribution, possiblySameEvent } from './studio-utils';
 import './studio.css';
 
 const defaultCategories: Category[] = [
@@ -48,6 +49,16 @@ type Page = 'upload' | 'review' | 'dashboard' | 'report' | 'settings';
 type Modal = 'edit' | 'add' | 'delete' | 'clear' | 'new-project' | 'duplicate' | 'category-delete' | null;
 const uid = () => crypto.randomUUID();
 const fmtSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const diagnosticsSummary = (d: SourceDiagnostics) => [
+  `${d.importedRecords} records added`,
+  `${d.extractedPhotos} photos extracted`,
+  `${d.associatedPhotos} photos matched`,
+  `${d.recordsNeedingReview} records need review`,
+  d.duplicateCandidates ? `${d.duplicateCandidates} duplicate candidates pending` : '',
+  d.unassignedPhotos ? `${d.unassignedPhotos} photos need assignment` : '',
+  d.unsupportedImages ? `${d.unsupportedImages} unsupported images` : '',
+  d.failedImages ? `${d.failedImages} image extractions failed` : '',
+].filter(Boolean).join(' · ');
 const safeText = (x: string) => x || 'Not provided';
 const filenamePart = (value: string) => value.trim().replace(/[–—]/g, '-').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
 const pdfFilename = (report: ReportInfo) => [
@@ -61,20 +72,6 @@ const piePath = (cx: number, cy: number, radius: number, start: number, end: num
   const x1 = cx + radius * Math.cos(start), y1 = cy + radius * Math.sin(start);
   const x2 = cx + radius * Math.cos(end), y2 = cy + radius * Math.sin(end);
   return `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${end - start > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`;
-};
-const tokenSimilarity = (first: string, second: string) => {
-  const words = (text: string) => new Set(text.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').match(/[\p{L}\p{N}]{3,}/gu) || []);
-  const a = words(first), b = words(second);
-  if (!a.size || !b.size) return 0;
-  const intersection = [...a].filter(word => b.has(word)).length;
-  return intersection / (a.size + b.size - intersection);
-};
-const possiblySameEvent = (first: EventRecord, second: EventRecord) => {
-  const nameScore = tokenSimilarity(first.name, second.name);
-  const descriptionScore = tokenSimilarity(first.description, second.description);
-  const sameDate = Boolean(first.date && second.date && first.date.toLowerCase().trim() === second.date.toLowerCase().trim());
-  return (nameScore >= 0.8 && (!first.date || !second.date || sameDate || descriptionScore >= 0.62)) ||
-    (sameDate && descriptionScore >= 0.5);
 };
 const missingEventFields = (event: EventRecord) => [
   !event.name.trim() && 'title',
@@ -100,6 +97,7 @@ function App() {
   const [activeEvent, setActiveEvent] = useState<EventRecord | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [duplicateQueue, setDuplicateQueue] = useState<DuplicateCandidate[]>([]);
+  const [photoTargetByFile, setPhotoTargetByFile] = useState<Record<string, string>>({});
   const [toast, setToast] = useState('');
   const [pdfUrl, setPdfUrl] = useState('');
   const [logoName, setLogoName] = useState('');
@@ -110,24 +108,24 @@ function App() {
   const logoRef = useRef<HTMLInputElement>(null);
   const departmentLogoRef = useRef<HTMLInputElement>(null);
   const coverImageRef = useRef<HTMLInputElement>(null);
-  const importImagesRef = useRef<HTMLInputElement>(null);
+  const generationVersion = useRef(0);
 
   useEffect(() => {
     if (!pdfUrl) return;
     return () => URL.revokeObjectURL(pdfUrl);
   }, [pdfUrl]);
+  useEffect(() => { setPdfUrl(''); }, [events, report, categories]);
   useEffect(() => {
-    if (!pdfUrl) return;
-    URL.revokeObjectURL(pdfUrl);
-    setPdfUrl('');
-  }, [events, report, categories]);
-  useEffect(() => { eventsRef.current = events; }, [events]);
+    eventsRef.current = events;
+    generationVersion.current += 1;
+  }, [events]);
+  useEffect(() => { generationVersion.current += 1; }, [report, categories]);
 
   const notify = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(''), 3200);
   }, []);
-  const counts = useMemo(() => categories.map(c => ({ ...c, count: events.filter(e => e.category === c.id).length })), [categories, events]);
+  const counts = useMemo(() => categoryDistribution(events, categories), [categories, events]);
   const needsReview = events.filter(eventNeedsReview);
   const filteredEvents = useMemo(() => events.filter(e => {
     const query = search.toLowerCase();
@@ -141,29 +139,35 @@ function App() {
     setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: 'working', message: 'Reading locally…' } : f));
     try {
       const result = await readLocalFile(sf.file);
-      let importedCount = 0;
+      const tableRecognized = Boolean(result.newsletterTableRecognized || result.newsletterRows !== undefined);
       let parsed: EventRecord[] = [];
       let importWarning = result.warning || '';
-      if (result.text || result.newsletterRows?.length) {
+      let unmatchedPhotos = [...(result.unassociatedPhotos || [])];
+      if (result.text || tableRecognized || result.photos?.length || result.pages?.length || result.unassociatedPhotos?.length) {
         let nextOrder = eventsRef.current.length;
-        parsed = result.newsletterRows?.length
-          ? eventsFromNewsletterRows(result.newsletterRows, sf.file.name, categories, nextOrder)
+        parsed = tableRecognized
+          ? eventsFromNewsletterRows(result.newsletterRows || [], sf.file.name, categories, nextOrder)
           : result.pages?.length
           ? result.pages.flatMap(page => {
               const pageEvents = eventsFromText(page.text, sf.file.name, categories, nextOrder, reviewThreshold);
               nextOrder += pageEvents.length;
-              return pageEvents.map(event => ({ ...event, images: page.image ? [page.image] : [] }));
+              if (page.image && pageEvents.length === 1) {
+                pageEvents[0].images = [...pageEvents[0].images, page.image];
+              } else if (page.image) {
+                unmatchedPhotos.push(page.image);
+              }
+              return pageEvents;
             })
           : eventsFromText(result.text, sf.file.name, categories, eventsRef.current.length, reviewThreshold);
-        importedCount = parsed.length;
-        if (!result.newsletterRows?.length && result.photos?.length && parsed.length === 1) {
+        if (!tableRecognized && !result.pages?.length && result.photos?.length && parsed.length === 1) {
           parsed = parsed.map(event => ({ ...event, images: [...event.images, ...result.photos!] }));
-        } else if (!result.newsletterRows?.length && result.photos?.length && parsed.length > 1) {
-          importWarning = [importWarning, `${result.photos.length} embedded photo${result.photos.length === 1 ? '' : 's'} could not be matched to individual records, so they were left unattached.`].filter(Boolean).join(' ');
+        } else if (!tableRecognized && !result.pages?.length && result.photos?.length && parsed.length !== 1) {
+          unmatchedPhotos.push(...result.photos);
         }
+        parsed = parsed.map(event => ({ ...event, sourceId: sf.id }));
+        const additions: EventRecord[] = [];
+        const duplicates: DuplicateCandidate[] = [];
         if (parsed.length) {
-          const additions: EventRecord[] = [];
-          const duplicates: DuplicateCandidate[] = [];
           for (const candidate of parsed) {
             const match = [...eventsRef.current, ...additions].find(event => possiblySameEvent(event, candidate));
             if (match) duplicates.push({ candidate, match });
@@ -175,22 +179,40 @@ function App() {
             setEvents(next);
           }
           if (duplicates.length) { setDuplicateQueue(old => [...old, ...duplicates]); setModal('duplicate'); }
-        } else {
-          setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: 'warning', message: [importWarning, 'Text read, but no clear event record was detected. Review the document content manually.'].filter(Boolean).join(' ') } : f));
-          notify('No event candidates found. No facts were added.');
-          return;
         }
+        const extractedPhotos = tableRecognized
+          ? parsed.reduce((total, event) => total + event.images.length, 0) + unmatchedPhotos.length
+          : result.photos?.length || result.pages?.reduce((total, page) => total + Number(Boolean(page.image)), 0) || 0;
+        const associatedPhotos = parsed.reduce((total, event) => total + event.images.length, 0);
+        const diagnostics: SourceDiagnostics = {
+          importedRecords: additions.length,
+          extractedPhotos,
+          associatedPhotos,
+          recordsNeedingReview: parsed.filter(eventNeedsReview).length,
+          duplicateCandidates: duplicates.length,
+          unassignedPhotos: unmatchedPhotos.length,
+          unsupportedImages: result.unsupportedImages || 0,
+          failedImages: result.failedImages || 0,
+        };
+        if (!parsed.length) importWarning = [importWarning, 'No clear event record was detected. No event facts were added.'].filter(Boolean).join(' ');
+        if (unmatchedPhotos.length) importWarning = [importWarning, `${unmatchedPhotos.length} extracted photo${unmatchedPhotos.length === 1 ? '' : 's'} need manual event assignment.`].filter(Boolean).join(' ');
+        const status = importWarning || duplicates.length || !parsed.length ? 'warning' : 'done';
+        setFiles(old => old.map(f => f.id === sf.id
+          ? { ...f, status, message: importWarning || '', diagnostics, unmatchedPhotos }
+          : f));
+        if (unmatchedPhotos.length && (eventsRef.current[0] || additions[0])) {
+          setPhotoTargetByFile(old => ({ ...old, [sf.id]: old[sf.id] || eventsRef.current[0]?.id || additions[0]?.id || '' }));
+        }
+        if (!parsed.length) notify('No event candidates found. No facts were added.');
+        else if (importWarning) notify('Import completed with items that need attention.');
+        else if (tableRecognized) notify(`${additions.length} newsletter records added. Review the imported rows, categories and images.`);
+        else notify('Local analysis complete. Check every extracted detail.');
+      } else {
+        setFiles(old => old.map(f => f.id === sf.id
+          ? { ...f, status: 'warning', message: [importWarning, 'No readable text or recognized newsletter table was found.'].filter(Boolean).join(' ') }
+          : f));
+        notify(result.warning || 'No text could be extracted.');
       }
-      const photoCount = parsed.reduce((total, event) => total + event.images.length, 0);
-      const reviewCount = parsed.filter(eventNeedsReview).length;
-      const successMessage = result.newsletterRows?.length
-        ? `${importedCount} records detected · ${photoCount} photos · ${reviewCount} need review`
-        : result.text ? `${importedCount} event candidate${importedCount === 1 ? '' : 's'} detected · ${reviewCount} need review` : 'No readable text found';
-      setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: importWarning ? 'warning' : 'done', message: [successMessage, importWarning].filter(Boolean).join(' · ') } : f));
-      if (importWarning && result.text) notify('Text extracted with a review note.');
-      else if (result.newsletterRows?.length) notify(`${importedCount} newsletter rows imported. Review categories, wording and images.`);
-      else if (result.text) notify('Local analysis complete. Check every extracted detail.');
-      else notify(result.warning || 'No text could be extracted.');
     } catch {
       setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: 'error', message: 'Could not read this file. It may be damaged or unsupported.' } : f));
       notify('This file could not be processed.');
@@ -213,11 +235,37 @@ function App() {
     for (const sf of acceptedFiles) await analyzeFile(sf);
     setBusy(false);
   };
-  const removeFile = (id: string) => setFiles(old => old.filter(f => f.id !== id));
+  const removeFile = (id: string) => {
+    setFiles(old => old.filter(f => f.id !== id));
+    setPhotoTargetByFile(old => { const next = { ...old }; delete next[id]; return next; });
+  };
+  const attachUnmatchedPhotos = (fileId: string) => {
+    const source = files.find(file => file.id === fileId);
+    const targetId = photoTargetByFile[fileId] || events[0]?.id;
+    if (!source?.unmatchedPhotos?.length || !targetId) {
+      notify('Add an event and choose it before attaching these photos.');
+      return;
+    }
+    const photos = source.unmatchedPhotos;
+    setEvents(old => old.map(event => event.id === targetId ? { ...event, images: [...event.images, ...photos] } : event));
+    setFiles(old => old.map(file => file.id === fileId
+      ? {
+          ...file,
+          unmatchedPhotos: [],
+          diagnostics: file.diagnostics ? {
+            ...file.diagnostics,
+            associatedPhotos: file.diagnostics.associatedPhotos + photos.length,
+            unassignedPhotos: 0,
+          } : undefined,
+          message: file.message?.replace(/\s*\d+ extracted photos? need manual event assignment\./i, ''),
+          status: file.diagnostics?.unsupportedImages || file.diagnostics?.failedImages ? 'warning' : 'done',
+        }
+      : file));
+    notify(`${photos.length} photo${photos.length === 1 ? '' : 's'} attached to the selected event.`);
+  };
   const startNewProject = () => {
-    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     eventsRef.current=[];
-     setFiles([]); setEvents([]); setCategories(defaultCategories); setReviewThreshold(0.62); setReport(defaultReport); setPdfUrl(''); setSearch(''); setFilter('all'); setDuplicateQueue([]); setActiveEvent(null); setPendingDelete(null); setPage('upload'); setModal(null);
+     setFiles([]); setEvents([]); setCategories(defaultCategories); setReviewThreshold(0.62); setReport(defaultReport); setPdfUrl(''); setSearch(''); setFilter('all'); setDuplicateQueue([]); setPhotoTargetByFile({}); setActiveEvent(null); setPendingDelete(null); setPage('upload'); setModal(null);
     setLogoName(''); setDepartmentLogoName(''); setCoverImageName('');
     notify('Session workspace cleared.');
   };
@@ -238,7 +286,16 @@ function App() {
   };
   const resolveDuplicate = (keepBoth:boolean) => {
     const [current,...remaining] = duplicateQueue;
-    if (keepBoth && current) setEvents(old => [...old,{...current.candidate,order:old.length}]);
+    if (current) {
+      if (keepBoth) setEvents(old => [...old,{...current.candidate,order:old.length}]);
+      setFiles(old => old.map(file => file.id === current.candidate.sourceId && file.diagnostics
+        ? { ...file, diagnostics: {
+            ...file.diagnostics,
+            importedRecords: file.diagnostics.importedRecords + Number(keepBoth),
+            duplicateCandidates: Math.max(0, file.diagnostics.duplicateCandidates - 1),
+          } }
+        : file));
+    }
     setDuplicateQueue(remaining);
     if (!remaining.length) setModal(null);
   };
@@ -298,9 +355,14 @@ function App() {
 
   const generatePdf = async () => {
     if (!events.length) { notify('Add or extract an event before generating a report.'); return; }
+    const version = generationVersion.current;
     try {
-      const blob = await buildNewsletterPdf(report, events, categories);
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      const snapshot = { report: structuredClone(report), events: structuredClone(events), categories: structuredClone(categories) };
+      const blob = await buildNewsletterPdf(snapshot.report, snapshot.events, snapshot.categories);
+      if (version !== generationVersion.current) {
+        notify('The register changed during PDF generation. Generate again for the latest version.');
+        return;
+      }
       setPdfUrl(URL.createObjectURL(blob));
       setPage('report');
       notify('Newsletter PDF preview is ready.');
@@ -339,11 +401,28 @@ function App() {
               <input ref={fileRef} type="file" multiple accept=".pdf,.docx,.jpg,.jpeg,.png" hidden onChange={e=>{if(e.target.files) void addFiles(e.target.files);e.target.value=''}} data-testid="input-files"/>
             </div>
             {files.length>0 && <div className="section-head"><h3>Source files <span>({files.length})</span></h3><button className="btn small danger" onClick={()=>setModal('clear')} data-testid="button-clear-files"><Trash2 size={13}/> Clear all</button></div>}
-            <div className="file-list">{files.map(f=><div className="file-row" key={f.id} data-testid={`file-row-${f.id}`}>
-              {f.file.type.startsWith('image/')?<FileImage size={17} className="file-icon"/>:<FileText size={17} className="file-icon"/>}
-              <div className="file-main"><div className="file-name">{f.file.name}</div><div className="file-meta">{fmtSize(f.file.size)} · {f.message || (f.status==='working'?'Reading in browser…':'Ready to analyze')}</div></div>
-              <span className={`state-tag ${f.status==='warning'?'warn':f.status==='error'?'error':''}`}>{f.status==='working'?'Reading':f.status==='done'?'Analyzed':f.status==='error'?'Problem':f.status==='warning'?'Review':'Ready'}</span>
-              <button className="btn icon small" aria-label={`Remove ${f.file.name}`} onClick={()=>removeFile(f.id)} data-testid={`button-remove-file-${f.id}`}><X size={14}/></button>
+            <div className="file-list">{files.map(f=><div className="file-entry" key={f.id} data-testid={`file-row-${f.id}`}>
+              <div className="file-row">
+                {f.file.type.startsWith('image/')?<FileImage size={17} className="file-icon"/>:<FileText size={17} className="file-icon"/>}
+                <div className="file-main"><div className="file-name">{f.file.name}</div><div className="file-meta">{fmtSize(f.file.size)}{f.diagnostics ? '' : ` · ${f.message || (f.status==='working'?'Reading in browser…':'Ready to analyze')}`}</div>
+                  {f.diagnostics&&<div className="file-diagnostics" aria-label="Import diagnostics">{diagnosticsSummary(f.diagnostics)}</div>}
+                  {f.message&&<div className="file-warning">{f.message}</div>}
+                </div>
+                <span className={`state-tag ${f.status==='warning'?'warn':f.status==='error'?'error':''}`}>{f.status==='working'?'Reading':f.status==='done'?'Analyzed':f.status==='error'?'Problem':f.status==='warning'?'Review':'Ready'}</span>
+                <button className="btn icon small" aria-label={`Remove ${f.file.name}`} onClick={()=>removeFile(f.id)} data-testid={`button-remove-file-${f.id}`}><X size={14}/></button>
+              </div>
+              {!!f.unmatchedPhotos?.length&&<div className="unmatched-photos" data-testid={`unmatched-photos-${f.id}`}>
+                <div><strong>{f.unmatchedPhotos.length} photo{f.unmatchedPhotos.length===1?'':'s'} need an event assignment.</strong><span>Nothing has been attached automatically because the source did not identify a matching record.</span></div>
+                <div className="unmatched-photo-controls">
+                  {events.length
+                    ? <><label className="sr-only" htmlFor={`photo-target-${f.id}`}>Choose the event for these photos</label><select id={`photo-target-${f.id}`} value={photoTargetByFile[f.id]||events[0]?.id||''} onChange={e=>setPhotoTargetByFile(old=>({...old,[f.id]:e.target.value}))} aria-label="Choose event for unmatched photos">
+                        <option value="" disabled>Select an event</option>
+                        {events.map(event=><option key={event.id} value={event.id}>{event.name||'Untitled event'} · {categories.find(category=>category.id===event.category)?.name||'Uncategorized'}</option>)}
+                      </select><button className="btn small" disabled={!photoTargetByFile[f.id]&&!events[0]} onClick={()=>attachUnmatchedPhotos(f.id)}>Attach to event</button></>
+                    : <button className="btn small" onClick={()=>{setPage('review');addBlankEvent()}}>Add an event first</button>}
+                </div>
+                <div className="unmatched-photo-thumbs">{f.unmatchedPhotos.map((image,index)=><img src={image} alt={`Unassigned source photo ${index+1}`} key={`${f.id}-unmatched-${index}`}/>)}</div>
+              </div>}
             </div>)}</div>
           </div>
           <aside className="panel side-guide"><div className="eyebrow">A careful first pass</div><h3>From scattered materials to a reviewable register.</h3>
