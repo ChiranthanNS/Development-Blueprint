@@ -21,19 +21,22 @@ const defaultCategories: Category[] = [
   { id: 'placements', name: 'Placemental Success', keywords: [{ term: 'placement', weight: 5 }, { term: 'placed', weight: 5 }, { term: 'salary package', weight: 3 }] },
   { id: 'other', name: 'Other', keywords: [] },
 ];
-const emptyReport: ReportInfo = {
-  institution: '',
-  department: '',
-  title: 'Department Newsletter',
-  academicYear: '',
+const defaultReport: ReportInfo = {
+  institution: 'Vidyavardhaka College of Engineering, Mysuru',
+  department: 'Department of CSE (Artificial Intelligence & Machine Learning)',
+  title: 'AIML-Gazette',
+  volume: '4',
+  issue: '1',
+  academicYear: '2025–26',
   period: '',
   subtitle: 'Department Newsletter',
+  coverLead: 'Leading the Way in Engineering Education',
   logo: '',
   departmentLogo: '',
   coverImage: '',
-  tagline: '',
+  tagline: 'CREATING A CULTURE OF INNOVATION',
   collegeProfile: '',
-  departmentTagline: '',
+  departmentTagline: 'The Science of Machines That Learn and Evolve',
   vision: '',
   mission: '',
   hodMessage: '',
@@ -46,6 +49,13 @@ type Modal = 'edit' | 'add' | 'delete' | 'clear' | 'new-project' | 'duplicate' |
 const uid = () => crypto.randomUUID();
 const fmtSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 const safeText = (x: string) => x || 'Not provided';
+const filenamePart = (value: string) => value.trim().replace(/[–—]/g, '-').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
+const pdfFilename = (report: ReportInfo) => [
+  filenamePart(report.title) || 'newsletter',
+  report.volume && filenamePart(`Volume-${report.volume}`),
+  report.issue && filenamePart(`Issue-${report.issue}`),
+  report.academicYear && filenamePart(`AY-${report.academicYear}`),
+].filter(Boolean).join('_') + '.pdf';
 const chartColors = ['#31564a', '#b8975b', '#708b77', '#b87355', '#647c98', '#8d718f', '#c29b58', '#a5a89a'];
 const piePath = (cx: number, cy: number, radius: number, start: number, end: number) => {
   const x1 = cx + radius * Math.cos(start), y1 = cy + radius * Math.sin(start);
@@ -81,7 +91,7 @@ function App() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [reviewThreshold, setReviewThreshold] = useState(0.62);
-  const [report, setReport] = useState<ReportInfo>(emptyReport);
+  const [report, setReport] = useState<ReportInfo>(defaultReport);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
@@ -122,7 +132,7 @@ function App() {
   const filteredEvents = useMemo(() => events.filter(e => {
     const query = search.toLowerCase();
     const categoryName = categories.find(category => category.id === e.category)?.name || '';
-    const matchesText = !query || [e.name, e.description, e.venue, e.organizer, e.department, e.club, categoryName, e.sourceFile].some(x => x.toLowerCase().includes(query));
+     const matchesText = !query || [e.name, e.description, e.date, e.venue, e.organizer, e.department, e.club, categoryName, e.sourceFile, e.sourceEventType || '', e.sourceEventName || '', e.sourceDescription || ''].some(x => x.toLowerCase().includes(query));
     const matchesFilter = filter === 'all' || (filter === 'review' ? eventNeedsReview(e) : e.category === filter);
     return matchesText && matchesFilter;
   }), [events, search, filter]);
@@ -132,9 +142,11 @@ function App() {
     try {
       const result = await readLocalFile(sf.file);
       let importedCount = 0;
+      let parsed: EventRecord[] = [];
+      let importWarning = result.warning || '';
       if (result.text || result.newsletterRows?.length) {
         let nextOrder = eventsRef.current.length;
-        let parsed = result.newsletterRows?.length
+        parsed = result.newsletterRows?.length
           ? eventsFromNewsletterRows(result.newsletterRows, sf.file.name, categories, nextOrder)
           : result.pages?.length
           ? result.pages.flatMap(page => {
@@ -144,11 +156,10 @@ function App() {
             })
           : eventsFromText(result.text, sf.file.name, categories, eventsRef.current.length, reviewThreshold);
         importedCount = parsed.length;
-        if (!result.newsletterRows?.length && result.photos?.length && parsed.length) {
-          parsed = parsed.map((event, index) => ({
-            ...event,
-            images: [...event.images, ...result.photos!.filter((_, photoIndex) => photoIndex % parsed.length === index)],
-          }));
+        if (!result.newsletterRows?.length && result.photos?.length && parsed.length === 1) {
+          parsed = parsed.map(event => ({ ...event, images: [...event.images, ...result.photos!] }));
+        } else if (!result.newsletterRows?.length && result.photos?.length && parsed.length > 1) {
+          importWarning = [importWarning, `${result.photos.length} embedded photo${result.photos.length === 1 ? '' : 's'} could not be matched to individual records, so they were left unattached.`].filter(Boolean).join(' ');
         }
         if (parsed.length) {
           const additions: EventRecord[] = [];
@@ -165,16 +176,18 @@ function App() {
           }
           if (duplicates.length) { setDuplicateQueue(old => [...old, ...duplicates]); setModal('duplicate'); }
         } else {
-          setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: 'warning', message: 'Text read, but no clear event record was detected. Review the document content manually.' } : f));
+          setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: 'warning', message: [importWarning, 'Text read, but no clear event record was detected. Review the document content manually.'].filter(Boolean).join(' ') } : f));
           notify('No event candidates found. No facts were added.');
           return;
         }
       }
+      const photoCount = parsed.reduce((total, event) => total + event.images.length, 0);
+      const reviewCount = parsed.filter(eventNeedsReview).length;
       const successMessage = result.newsletterRows?.length
-        ? `${importedCount} newsletter rows imported; row photos kept with their entries`
-        : result.text ? 'Analysis complete' : 'No readable text found';
-      setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: result.warning ? 'warning' : 'done', message: result.warning || successMessage } : f));
-      if (result.warning && result.text) notify('Text extracted with a review note.');
+        ? `${importedCount} records detected · ${photoCount} photos · ${reviewCount} need review`
+        : result.text ? `${importedCount} event candidate${importedCount === 1 ? '' : 's'} detected · ${reviewCount} need review` : 'No readable text found';
+      setFiles(old => old.map(f => f.id === sf.id ? { ...f, status: importWarning ? 'warning' : 'done', message: [successMessage, importWarning].filter(Boolean).join(' · ') } : f));
+      if (importWarning && result.text) notify('Text extracted with a review note.');
       else if (result.newsletterRows?.length) notify(`${importedCount} newsletter rows imported. Review categories, wording and images.`);
       else if (result.text) notify('Local analysis complete. Check every extracted detail.');
       else notify(result.warning || 'No text could be extracted.');
@@ -204,7 +217,7 @@ function App() {
   const startNewProject = () => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     eventsRef.current=[];
-    setFiles([]); setEvents([]); setCategories(defaultCategories); setReviewThreshold(0.62); setReport(emptyReport); setPdfUrl(''); setSearch(''); setFilter('all'); setDuplicateQueue([]); setActiveEvent(null); setPendingDelete(null); setPage('upload'); setModal(null);
+     setFiles([]); setEvents([]); setCategories(defaultCategories); setReviewThreshold(0.62); setReport(defaultReport); setPdfUrl(''); setSearch(''); setFilter('all'); setDuplicateQueue([]); setActiveEvent(null); setPendingDelete(null); setPage('upload'); setModal(null);
     setLogoName(''); setDepartmentLogoName(''); setCoverImageName('');
     notify('Session workspace cleared.');
   };
@@ -368,6 +381,7 @@ function App() {
               <h3>{event.name||'Untitled event'}</h3><p>{event.description||'No description in source material.'}</p>
               <div className="event-meta"><span>{event.date||'Date not found'}</span><span title={`Classification confidence: ${Math.round(event.confidence*100)}%`} className={`confidence ${event.confidence<reviewThreshold?'low':''}`}>{Math.round(event.confidence*100)}% {event.confidence>=.8?'high':event.confidence>=.55?'medium':'low'}</span></div>
               <div className="classification-source">Classification: {event.classificationSource}</div>
+              <div className="classification-source">Source: {event.sourceFile}{event.sourceEventType?` · ${event.sourceEventType}`:''}</div>
               {eventNeedsReview(event)&&<div className="review-banner"><CircleAlert size={11}/> Needs review · {event.classificationSource}{missingEventFields(event).length>0&&<span className="event-incomplete">Missing {missingEventFields(event).join(', ')}</span>}</div>}
               <div className="event-actions"><button className="btn" onClick={()=>openEdit(event)} aria-label={`Edit ${event.name}`} data-testid={`button-edit-${event.id}`}><Pencil size={13}/> Edit</button><button className="btn danger" onClick={()=>{setPendingDelete(event.id);setModal('delete')}} aria-label={`Delete ${event.name}`} data-testid={`button-delete-${event.id}`}><Trash2 size={13}/></button></div>
             </article>)}
@@ -426,9 +440,12 @@ function App() {
                 <div className="field"><label htmlFor="institution">Institution</label><input id="institution" value={report.institution} onChange={e=>setReport({...report,institution:e.target.value})} placeholder="Institution name" data-testid="input-institution"/></div>
                 <div className="field"><label htmlFor="department">Department / faculty</label><input id="department" value={report.department} onChange={e=>setReport({...report,department:e.target.value})} placeholder="Department name" data-testid="input-department"/></div>
                 <div className="field full"><label htmlFor="report-title">Newsletter title</label><input id="report-title" value={report.title} onChange={e=>setReport({...report,title:e.target.value})} placeholder="Faculty Events Newsletter"/></div>
+                <div className="field"><label htmlFor="report-volume">Volume</label><input id="report-volume" value={report.volume} onChange={e=>setReport({...report,volume:e.target.value})} placeholder="e.g. 4"/></div>
+                <div className="field"><label htmlFor="report-issue">Issue</label><input id="report-issue" value={report.issue} onChange={e=>setReport({...report,issue:e.target.value})} placeholder="e.g. 1"/></div>
                 <div className="field"><label htmlFor="year">Academic year</label><input id="year" value={report.academicYear} onChange={e=>setReport({...report,academicYear:e.target.value})} placeholder="e.g. 2024–25"/></div>
                 <div className="field"><label htmlFor="period">Reporting period</label><input id="period" value={report.period} onChange={e=>setReport({...report,period:e.target.value})} placeholder="e.g. Autumn semester"/></div>
                 <div className="field full"><label htmlFor="subtitle">Subtitle</label><input id="subtitle" value={report.subtitle} onChange={e=>setReport({...report,subtitle:e.target.value})} placeholder="Optional cover line"/></div>
+                <div className="field full"><label htmlFor="cover-lead">Cover lead-in</label><input id="cover-lead" value={report.coverLead} onChange={e=>setReport({...report,coverLead:e.target.value})} placeholder="Optional second cover statement"/></div>
               </div>
             </div>
             <div className="panel panel-pad" style={{marginTop:14}}>
@@ -504,7 +521,7 @@ function App() {
             </div>
           </div>
           <div className="preview-wrap">
-            <div className="preview-toolbar"><div><strong style={{fontSize:12}}>PDF preview</strong><div style={{fontSize:10,color:'#818b82',marginTop:3}}>{pdfUrl?'Generated from current state':'Generate to preview'}</div></div>{pdfUrl&&<a href={pdfUrl} download={`${(report.title||'newsletter').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.pdf`} className="btn small primary" data-testid="link-download-pdf"><Download size={14}/> Download PDF</a>}</div>
+             <div className="preview-toolbar"><div><strong style={{fontSize:12}}>PDF preview</strong><div style={{fontSize:10,color:'#818b82',marginTop:3}}>{pdfUrl?'Generated from current state':'Generate to preview'}</div></div>{pdfUrl&&<a href={pdfUrl} download={pdfFilename(report)} className="btn small primary" data-testid="link-download-pdf"><Download size={14}/> Download PDF</a>}</div>
             {pdfUrl?<iframe className="pdf-frame" src={pdfUrl} title="Generated newsletter PDF preview" data-testid="frame-pdf-preview"/>:<div className="no-preview"><BookOpen size={27}/><strong>Your publication takes shape here.</strong><span>Generate a PDF to preview the cover, department profile and event sections.</span><span style={{fontSize:10}}>No files leave this browser.</span></div>}
           </div>
         </div>
@@ -554,6 +571,13 @@ function EventModal({event,categories,onClose,onSave,onImages,title}:{event:Even
   return <div className="modal-backdrop" role="presentation"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
     <div className="modal-head"><div><div className="eyebrow">{draft.sourceFile}</div><h2 id="event-modal-title">{title}</h2><p>Keep source-grounded details, and leave unknowns blank.</p></div><button className="btn icon" onClick={onClose} aria-label="Close"><X size={16}/></button></div>
     {(draft.needsReview||missingEventFields(draft).length>0)&&<div className="alert"><CircleAlert size={15}/><span>This record needs review. The source match is {Math.round(draft.confidence*100)}%{missingEventFields(draft).length>0?`. Missing: ${missingEventFields(draft).join(', ')}.`:' and some details may need checking.'}</span></div>}
+    {(draft.sourceEventType||draft.sourceEventName||draft.sourceDescription)&&<details className="source-details">
+      <summary>Original wording from the data-format row</summary>
+      {draft.sourceMonth&&<p><strong>Source month:</strong> {draft.sourceMonth}</p>}
+      {draft.sourceEventType&&<p><strong>Source event type:</strong> {draft.sourceEventType}</p>}
+      {draft.sourceEventName&&<p><strong>Source event name:</strong> {draft.sourceEventName}</p>}
+      {draft.sourceDescription&&<p><strong>Original description:</strong> {draft.sourceDescription}</p>}
+    </details>}
     <div className="field-grid">
       <div className="field full"><label htmlFor="ev-name">Event name</label><input id="ev-name" value={draft.name} onChange={e=>change('name',e.target.value)} placeholder="Title as stated in source"/></div>
       <div className="field full"><label htmlFor="ev-description">Description / source excerpt</label><textarea id="ev-description" value={draft.description} onChange={e=>change('description',e.target.value)} placeholder="No description detected"/></div>

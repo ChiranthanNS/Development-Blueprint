@@ -27,8 +27,12 @@ function bodyWithoutRepeatedTitle(name: string, description: string) {
 export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord[], categories: Category[]): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  const issueLabel = [
+    report.volume ? `Volume-${report.volume}` : '',
+    report.issue ? `Issue-${report.issue}` : '',
+  ].filter(Boolean).join(', ');
   doc.setProperties({
-    title: `${report.title || 'Department Newsletter'} ${report.period || ''}`.trim(),
+    title: [report.title || 'Department Newsletter', issueLabel, report.academicYear].filter(Boolean).join(' ').trim(),
     author: report.institution || '',
     subject: report.academicYear || '',
   });
@@ -144,11 +148,15 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
   doc.setFontSize(23);
   doc.setTextColor(...ink);
   const newsletterTitleLines = wrap(report.title || 'Department Newsletter', 'times', 'bold', 23, contentWidth - 24);
-  newsletterTitleLines.slice(0, 2).forEach((line, index) => doc.text(line, pageWidth / 2, coverY + index * 8.2, { align: 'center' }));
+  newsletterTitleLines.forEach((line, index) => doc.text(line, pageWidth / 2, coverY + index * 8.2, { align: 'center' }));
   coverY += newsletterTitleLines.length * 8.2 + 2;
   doc.setFont('times', 'normal');
   doc.setFontSize(9.5);
-  const issueLines = [report.period, report.academicYear ? `AY: ${report.academicYear}` : ''].filter(Boolean);
+  const issueLines = [
+    issueLabel,
+    report.period,
+    report.academicYear ? `AY: ${report.academicYear}` : '',
+  ].filter(Boolean);
   if (issueLines.length) doc.text(issueLines.join('  |  '), pageWidth / 2, coverY, { align: 'center' });
   coverY += 7;
   if (report.tagline.trim()) {
@@ -163,6 +171,14 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     doc.setLineWidth(0.5);
     doc.line(margin + 5, coverY, pageWidth - margin - 5, coverY);
     coverY += 4;
+  }
+  if (report.coverLead.trim()) {
+    doc.setFont('times', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...ink);
+    const leadLines = wrap(report.coverLead, 'times', 'bold', 11, contentWidth - 18);
+    leadLines.forEach((line, index) => doc.text(line, pageWidth / 2, coverY + index * 5, { align: 'center' }));
+    coverY += leadLines.length * 5 + 4;
   }
   if (report.collegeProfile.trim()) {
     const profileY = drawPanel('College Profile', report.collegeProfile, coverY, { fontSize: 7.7, lineHeight: 3.55, maxY: pageHeight - 13 });

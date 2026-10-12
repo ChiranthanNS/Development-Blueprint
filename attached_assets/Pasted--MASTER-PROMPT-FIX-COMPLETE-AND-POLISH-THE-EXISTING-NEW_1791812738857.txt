@@ -1,0 +1,1041 @@
+# MASTER PROMPT: FIX, COMPLETE AND POLISH THE EXISTING NEWSLETTER GENERATION PROJECT
+
+## 1. YOUR ROLE AND OBJECTIVE
+
+Act as a senior full-stack developer, document-processing engineer, frontend designer, PDF-generation specialist, and software tester.
+
+You are continuing an existing project called **Event Newsletter Studio**, located in this GitHub repository:
+
+https://github.com/ChiranthanNS/Development-Blueprint
+
+The application is intended for the Department of CSE (Artificial Intelligence and Machine Learning), Vidyavardhaka College of Engineering (VVCE), Mysuru.
+
+I have already provided an earlier project specification and you have already implemented a significant amount of code. However, multiple issues remain, and I need the existing application to be completed, corrected, and made reliable.
+
+**Do not start a new project. Do not replace the existing application with a fresh template. Do not delete working features and recreate them without justification.**
+
+Your first responsibility is to inspect the repository, understand the existing architecture, run the current application, identify what works and what fails, and then fix the issues systematically.
+
+The main objective is to produce a polished, downloadable PDF newsletter that closely follows the supplied reference newsletter:
+
+**AIML-Gazette, Volume 4, Issue 1, AY 2025–26.**
+
+The final PDF must retain the reference newsletter’s institutional identity, page structure, section hierarchy, event descriptions, photographs, and publication-style layouts.
+
+---
+
+## 2. FILES THAT ARE THE SOURCE OF TRUTH
+
+Two documents are available in this project.
+
+### Reference 1: Newsletter Volume 4, Issue 1
+
+File: `Newsletter Volume-4, Issue-1.pdf`
+
+This is the final publication-design reference.
+
+Study all 24 pages, including their rendered layouts, rather than relying only on extracted text.
+
+Use it to understand:
+
+- The cover page and institutional masthead.
+- VVCE and department logos.
+- The campus photograph.
+- Newsletter title and issue information.
+- The college profile.
+- The department introduction.
+- Vision and mission.
+- Message from the Head of Department.
+- Editorial team.
+- Category headings.
+- Framed event panels.
+- Event descriptions and photographs.
+- Faculty achievements.
+- Student achievements.
+- Placemental Success pages.
+
+The reference is an academic newsletter, not a generic corporate report, dashboard printout, or plain-text PDF.
+
+### Reference 2: 2025–26 Newsletter Data Format
+
+File: `2025_26 Newsletter_data_formate.docx`
+
+This is the primary structured input reference.
+
+It contains a table organized around:
+
+1. Event Month
+2. Event Type
+3. Event Name
+4. Event Images
+5. Event Description
+
+Study its table layout, month headings, category labels, embedded images, merged cells, and row structure.
+
+The application must correctly import multiple records from this format and preserve each record's information and associated photographs.
+
+Do not silently substitute the data format with an unrelated CSV or a manually created sample dataset.
+
+If either reference file is already present in `attached_assets`, use that copy. Do not unnecessarily duplicate large documents or alter the originals.
+
+---
+
+## 3. INSPECT THE EXISTING IMPLEMENTATION BEFORE MAKING CHANGES
+
+The repository already contains a React and TypeScript newsletter application.
+
+Inspect at least these existing files:
+
+- `artifacts/event-newsletter/src/App.tsx`
+- `artifacts/event-newsletter/src/extract.ts`
+- `artifacts/event-newsletter/src/newsletter-pdf.ts`
+- `artifacts/event-newsletter/src/studio-types.ts`
+- `artifacts/event-newsletter/src/studio.css`
+- `artifacts/event-newsletter/src/index.css`
+- `artifacts/event-newsletter/package.json`
+- `artifacts/event-newsletter/README.md`
+- Existing API and workspace configuration where relevant.
+
+The current implementation already includes substantial functionality, such as local PDF/DOCX extraction, OCR, weighted keyword categories, a review interface, drag-and-drop event movement, report settings, and client-side PDF generation.
+
+Verify the actual current behaviour of each feature instead of assuming that documentation proves it works.
+
+Before changing code:
+
+1. Run the existing application.
+2. Run the available type-check and build commands.
+3. Reproduce the current errors.
+4. Inspect the existing event import and classification flow.
+5. Inspect PDF generation against the provided reference.
+6. Record the issues found.
+7. Make targeted changes without breaking existing functionality.
+
+Create a small, practical implementation checklist and update it as you proceed.
+
+Do not finish after producing an audit or a proposed plan. Actually implement the required corrections.
+
+---
+
+## 4. THE REQUIRED END-TO-END WORKFLOW
+
+The intended workflow is:
+
+UPLOAD DOCUMENTS
+→ EXTRACT TEXT AND IMAGES
+→ IDENTIFY EVENT RECORDS
+→ CLASSIFY EVENTS
+→ REVIEW AND CORRECT
+→ ARRANGE CATEGORIES AND EVENT ORDER
+→ CONFIGURE NEWSLETTER
+→ GENERATE PDF
+→ PREVIEW PDF
+→ DOWNLOAD PDF
+→ START NEW PROJECT
+
+Every step must operate on the same underlying event data.
+
+Changes made during review must appear in the generated PDF.
+
+The final PDF must always use the latest approved event records rather than stale data from the original extraction.
+
+---
+
+## 5. PRESERVE AND IMPROVE THE EXISTING USER INTERFACE
+
+Keep the existing application’s professional academic visual style.
+
+The current application uses a React/Vite workspace, a publication-builder interface, an event review board, a category configuration page, a dashboard, and report settings.
+
+Preserve working components and improve them where necessary.
+
+The interface should remain clean, responsive, and suitable for faculty members.
+
+Required navigation:
+
+- Upload & Analyze
+- Review & Arrange
+- Dashboard
+- Report & PDF
+- Categories & Keywords
+
+The upload page should show selected files, file type, file size, processing state, warnings, and errors.
+
+The review page should contain event cards organized by category.
+
+The dashboard should show accurate event counts and category distribution.
+
+The report page should allow publication settings to be edited and provide PDF preview and download controls.
+
+Do not create decorative controls that do nothing.
+
+Every visible button must have a real, working purpose.
+
+---
+
+## 6. CORRECT NEWSLETTER DATA-FORMAT IMPORT
+
+This is one of the highest-priority features.
+
+The supplied Word document is a multi-page newsletter data table, not a simple document containing one event after another.
+
+The existing application already has a structured table-import path in `extract.ts`. Preserve and improve that functionality.
+
+The importer must recognize the source columns corresponding to:
+
+- Event Month
+- Event Type
+- Event Name
+- Event Images
+- Event Description
+
+The source table may use merged cells, repeated month headings, empty continuation cells, and rows containing multiple photographs.
+
+### Required import behaviour
+
+For every actual event record:
+
+- Read the event month or reporting month.
+- Preserve the source event type.
+- Extract the event name where provided.
+- Preserve the complete event description.
+- Extract every supported embedded photograph.
+- Preserve the association between the record and its photographs.
+- Keep the original source wording available for review.
+- Preserve the source filename for traceability.
+
+Handle month headings correctly.
+
+For example, a month heading such as `September 2025` may appear in a separate merged row rather than being repeated for every event.
+
+Subsequent records should inherit that month when appropriate.
+
+Likewise, if the document uses a merged event-type cell, subsequent related rows must inherit the type only when the source table structure supports that interpretation.
+
+Do not merge unrelated events accidentally.
+
+Do not create extra event records from incomplete layout fragments.
+
+Do not drop valid records merely because a date is missing.
+
+Do not replace blank values with invented information.
+
+### Import diagnostics
+
+After importing the Word table, display:
+
+- Number of records imported.
+- Number of photographs imported.
+- Number of records requiring review.
+- Unsupported image warnings.
+- Extraction warnings.
+
+When a table is recognized, use the structured table data rather than parsing the same entire document again as unstructured text and creating duplicate events.
+
+If a record is duplicated in different input files, use the existing duplicate-review mechanism.
+
+Never silently delete a potential duplicate.
+
+---
+
+## 7. HANDLE THE MIXED AND IMPERFECT SOURCE DATA
+
+The input document is not perfectly structured.
+
+Some rows contain event names. Others contain category-like labels, dates, or achievement descriptions.
+
+Some descriptions contain the event title inside quotation marks.
+
+Some records include several photographs.
+
+Some achievement records have no formal event date.
+
+The application must tolerate this variation.
+
+### Data-integrity rules
+
+1. Do not invent an event name, date, venue, organizer, or description.
+2. Preserve original source text so the faculty can verify extracted data.
+3. Use a clear fallback title only when necessary, and flag the record for review.
+4. Do not discard a valid record solely because one optional field is empty.
+5. Do not treat every month or event-type heading as an independent event.
+6. Do not attach an unrelated photograph merely because it appears in the same document.
+7. Keep images with their actual source record whenever that association can be established.
+8. Report uncertain extraction instead of pretending it succeeded.
+
+Use the structured DOCX table as the most reliable input path for the provided data format.
+
+For general-purpose PDFs and images, keep the current extraction approach but explicitly identify its limitations and provide a review step.
+
+---
+
+## 8. REPRODUCE THE VOLUME 4 NEWSLETTER STRUCTURE
+
+The final generated PDF should follow the supplied Volume 4, Issue 1 publication format.
+
+The reference contains the following major sections.
+
+### Front matter
+
+**Page 1: Cover**
+
+- VVCE institutional masthead.
+- Institutional logo.
+- Department of CSE (Artificial Intelligence & Machine Learning).
+- Campus photograph.
+- “Presents”.
+- “Department Newsletter”.
+- “AIML-Gazette”.
+- “Volume-4, Issue-1”.
+- “AY: 2025-26”.
+- “CREATING A CULTURE OF INNOVATION”.
+- “Leading the Way in Engineering Education”.
+- College profile text.
+
+**Page 2: About Department**
+
+- “ABOUT DEPARTMENT”.
+- Department tagline: “The Science of Machines That Learn and Evolve”.
+- Vision of the Department.
+- Mission of the Department.
+- Message from Head of the Department.
+- HOD name and designation.
+- Editorial Team.
+
+The reference also includes a staff designation/gender/total table alongside the editorial section. Treat that as an optional front-matter component if the required data is supplied; do not invent staffing values.
+
+### Event and activity sections
+
+Reproduce these section names and their intended hierarchy:
+
+1. Workshops
+2. Technical Talks
+3. Codeathons
+4. Hackathons
+5. Alumni-Interactions
+6. Club Activities
+7. Outreach Activities
+8. Department Activities
+9. Students’ Achievements / Student Achievements
+10. Faculty Achievements
+11. Placemental Success
+
+Preserve the reference’s category labels when those categories are chosen for the output.
+
+If the imported event type requires mapping to one of these publication sections, let the faculty correct the mapping before PDF generation.
+
+Do not introduce unnecessary new sections or rename the reference sections without user approval.
+
+### Critical distinction
+
+The source document has its own Event Type column, while the reference PDF has publication-section headings.
+
+The application must support mapping source event types to publication sections.
+
+A single source type may map to an existing publication section according to the configured rules.
+
+The faculty must be able to correct the category when the mapping is wrong.
+
+---
+
+## 9. MATCH THE PDF'S VISUAL DESIGN, NOT JUST ITS HEADINGS
+
+Study the rendered reference PDF pages.
+
+Aim for a close, consistent reproduction of the design language.
+
+### Typography and identity
+
+- Use an academic serif style for publication headings and body copy where appropriate.
+- Use bold uppercase category headings.
+- Use centred headings with divider lines.
+- Maintain the VVCE/department institutional identity.
+- Use the reference’s restrained colour scheme and predominantly white page background.
+- Maintain consistent margins and content alignment.
+
+### Institutional masthead
+
+The inside pages should have:
+
+- Logo at the left.
+- Section title centred.
+- Department/associated logo at the right where available.
+- Horizontal divider rules.
+
+### Event panels
+
+The reference’s event pages use outlined panels containing descriptions and photographs.
+
+Implement clean framed event panels with:
+
+- Appropriate padding.
+- Readable text.
+- Consistent borders.
+- One or multiple images as needed.
+- Consistent spacing between event panels.
+
+Photographs must retain their aspect ratios.
+
+Avoid stretched, distorted, excessively cropped, pixelated, or overlapping photographs.
+
+The output should not look like a raw table exported directly from Word.
+
+### Responsive print layout
+
+The application’s web interface should be responsive.
+
+The PDF itself must be designed for A4 portrait pages, with margins and page boundaries matching a professional academic publication.
+
+Do not assume browser screen dimensions are the PDF page dimensions.
+
+---
+
+## 10. FRONT-MATTER DATA MUST BE EDITABLE
+
+Keep and improve the existing report form.
+
+Support these fields:
+
+- Institution name.
+- Department name.
+- Newsletter title.
+- Volume.
+- Issue.
+- Academic year.
+- Reporting period.
+- Subtitle.
+- Cover statement/tagline.
+- Institution logo.
+- Department logo.
+- Cover photograph.
+- College profile.
+- Department tagline.
+- Department vision.
+- Department mission.
+- HOD message.
+- HOD name.
+- HOD designation.
+- Editorial team.
+
+Add explicit Volume and Issue inputs if they are not already present.
+
+Set appropriate initial values corresponding to the supplied reference:
+
+- Newsletter title: AIML-Gazette
+- Volume: 4
+- Issue: 1
+- Academic year: 2025–26
+
+These must remain editable for future issues.
+
+Do not permanently hard-code Volume 4, Issue 1 into the PDF-generation function.
+
+The user must be able to generate future newsletter issues without changing source code.
+
+Allow all front-matter values to be edited before PDF generation.
+
+---
+
+## 11. CORRECT THE EVENT CLASSIFICATION SYSTEM
+
+The application should continue using a configurable, weighted keyword engine as its primary classifier.
+
+Do not make paid AI APIs a required dependency.
+
+The existing categories include:
+
+- Workshops
+- Technical Talks
+- Codeathons
+- Hackathons
+- Alumni Interactions
+- Club Activities
+- Outreach Activities
+- Department Activities
+- Student Achievements
+- Faculty Achievements
+- Placemental Success
+- Other
+
+Preserve these categories because they correspond to the reference newsletter.
+
+### Classification rules
+
+The system must:
+
+- Normalize text before matching keywords.
+- Support multi-word phrases.
+- Give greater weights to category-specific terms.
+- Calculate the scores for all configured categories.
+- Identify ambiguous or low-confidence cases.
+- Show the predicted category and why it was selected.
+- Allow the faculty to override the predicted category.
+
+### Important category distinctions
+
+- A Codeathon is not automatically a Hackathon.
+- A Hackathon is not automatically a Codeathon.
+- A workshop involving coding should remain a Workshop if that is the intended source category.
+- An outreach activity that also contains a workshop should not automatically lose its Outreach classification.
+- A student's achievement at an external hackathon may belong in Student Achievements rather than the Hackathons section.
+- A faculty publication or patent belongs in Faculty Achievements when that is the intended publication section.
+- Placement records belong in Placemental Success.
+- An alumni interaction should not be classified as an ordinary technical talk without appropriate justification.
+
+Where the source document explicitly identifies an event type, prefer that source information over weak keyword guesses.
+
+Do not assume that an ambiguous record has been classified correctly merely because it has a high numerical score.
+
+Show “Needs Review” when necessary.
+
+---
+
+## 12. CATEGORY MANAGEMENT
+
+Keep the Categories & Keywords page.
+
+Allow the user to:
+
+- Add a category.
+- Rename a category.
+- Remove an unused category.
+- Configure category-specific keywords.
+- Add or remove keywords.
+- Change keyword weights.
+- Configure the confidence threshold.
+
+For newsletter generation, distinguish the source classification category from the final publication section if necessary.
+
+The final PDF should use the approved publication section, not a stale initial prediction.
+
+When categories are renamed, removed, or changed, ensure all associated records are handled correctly.
+
+Do not lose event records simply because a category was changed.
+
+---
+
+## 13. REVIEW, EDITING, AND DRAG-AND-DROP
+
+The Review & Arrange page must work reliably.
+
+Each event card should show:
+
+- Event name.
+- Description preview.
+- Month/date.
+- Category/publication section.
+- Photograph thumbnails.
+- Source filename.
+- Classification confidence.
+- Review warnings.
+- Edit action.
+- Delete action.
+
+### Drag and drop
+
+Implement functional drag-and-drop between category columns.
+
+For example:
+
+Codathons → Hackathons.
+
+After movement:
+
+- Update the event's assigned section.
+- Update section counts.
+- Update the dashboard.
+- Preserve the event details.
+- Preserve its photographs.
+- Preserve any relevant order information.
+- Use the corrected section in the PDF.
+
+Also support reordering within the same category.
+
+The PDF must preserve the final user-selected ordering.
+
+### Event editing
+
+Allow editing:
+
+- Event title.
+- Description.
+- Month/date.
+- Category/section.
+- Associated photographs.
+
+Other extracted metadata should remain editable when available.
+
+Provide the ability to add, replace, and remove photographs.
+
+### Delete and add
+
+Users should be able to delete an unwanted event and manually add a missing event.
+
+Deleted events must not appear in the final PDF or statistics.
+
+Manually added events must follow the same data structure and PDF-generation rules as imported events.
+
+---
+
+## 14. IMAGE ASSOCIATION MUST BE RELIABLE
+
+The newsletter is photograph-heavy, so image handling is critical.
+
+The data-format document may contain multiple embedded images within a single source row.
+
+The application should preserve all images belonging to that row.
+
+Do not distribute images across events merely by alternating image indices or assigning them using an arbitrary modulo calculation when that may produce incorrect associations.
+
+Prefer the structured relationship between DOCX table rows and their embedded images.
+
+For PDFs and image-based documents, use page/layout proximity when practical.
+
+If the image-to-event association is uncertain, expose the images for user review instead of claiming perfect detection.
+
+Support:
+
+- Multiple images per event.
+- Photo preview.
+- Photo replacement.
+- Photo removal.
+- Adding additional photos.
+- A clean “No event photograph available” placeholder.
+
+Image-processing errors must not crash the application.
+
+---
+
+## 15. IMPROVE THE PDF GENERATOR
+
+Inspect and improve the existing implementation in:
+
+`artifacts/event-newsletter/src/newsletter-pdf.ts`
+
+Keep using the existing client-side PDF-generation approach where it is reliable.
+
+The current project uses jsPDF. Do not introduce an entirely new PDF framework without demonstrating why the current one cannot meet the requirements.
+
+### Required PDF contents
+
+1. Cover page.
+2. About Department page.
+3. College profile.
+4. Department vision and mission.
+5. HOD message and editorial information.
+6. Event category pages.
+7. Faculty achievements.
+8. Student achievements.
+9. Placemental Success pages.
+
+Sections should appear in the expected publication order.
+
+Do not create empty category sections by default.
+
+### Event page layout
+
+Each event should contain its approved title, complete description, available month/date, and associated photographs.
+
+Display multiple photographs in a balanced layout.
+
+Use special layouts where appropriate:
+
+- Student Achievements may use a compact gallery/grid.
+- Faculty Achievements may use a denser publication layout for a long list of achievements.
+- Placemental Success should support a grid of student cards containing portrait, name, employer, and package details when those details are present.
+
+Do not invent placement information.
+
+For normal event sections, use the framed panels found in the reference newsletter.
+
+### Layout correctness
+
+Implement:
+
+- Text wrapping.
+- Dynamic card sizing.
+- Safe image sizing.
+- Automatic page breaks.
+- Continued-section headings where necessary.
+- Page numbers.
+- Consistent page headers and footers.
+- Safe content boundaries.
+- Appropriate font sizes.
+- Long-description support.
+- Multiple-image handling.
+
+Avoid:
+
+- Text overflowing outside a panel.
+- Text touching or overlapping photographs.
+- Images extending beyond a page.
+- Event descriptions being silently truncated.
+- Headings stranded at the bottom of a page.
+- Unnecessary blank pages.
+- Inconsistent section spacing.
+- Tiny unreadable body text.
+
+A short PDF is not automatically a successful PDF. The content must remain complete and readable.
+
+---
+
+## 16. FINAL PDF MUST REFLECT THE LATEST STATE
+
+This is a mandatory acceptance criterion.
+
+The generated PDF must be built from the current, approved `events`, `categories`, and `report` state.
+
+It must not reuse stale classification results or an earlier generated PDF after the user has made changes.
+
+Test each of these:
+
+1. Move an event from Codeathons to Hackathons.
+2. Rename an event.
+3. Edit a description.
+4. Change a month/date.
+5. Replace a photograph.
+6. Add a photograph.
+7. Remove a photograph.
+8. Reorder events.
+9. Delete an event.
+10. Add a new event.
+11. Change a section name.
+12. Modify the report title or academic year.
+
+Regenerate the PDF and verify that every change is reflected.
+
+If a PDF preview has already been generated and the underlying state changes, invalidate or regenerate that preview.
+
+Do not let a previous preview be presented as if it reflects the current event register.
+
+---
+
+## 17. PDF PREVIEW AND DOWNLOAD
+
+The Report & PDF page should support:
+
+- Publication settings.
+- Preview generation.
+- PDF preview in the browser.
+- Download PDF.
+- Return to Review.
+- Regenerate PDF.
+
+Use an accurate filename based on the newsletter title, volume, issue, and academic year where practical.
+
+Example:
+
+`AIML-Gazette_Volume-4_Issue-1_AY-2025-26.pdf`
+
+Do not overwrite the original uploaded source documents.
+
+Verify that the generated file opens correctly in a standard PDF reader.
+
+---
+
+## 18. DASHBOARD AND STATISTICS
+
+Keep the existing dashboard.
+
+Show:
+
+- Total event records.
+- Count by publication section.
+- Number of records needing review.
+- Number of categories in use.
+- Pie chart showing event distribution.
+
+The chart and counts must update when events are added, removed, moved, or reclassified.
+
+Use the final approved event state.
+
+Do not count source headings or empty table rows as events.
+
+Avoid duplicate counts caused by importing the same document through multiple extraction paths.
+
+---
+
+## 19. SEARCH AND FILTER
+
+Preserve existing search and filters.
+
+Support searching by:
+
+- Event title.
+- Description.
+- Month/date.
+- Category/publication section.
+- Venue.
+- Organizer.
+- Source filename.
+
+Provide a filter for:
+
+- All events.
+- Individual categories.
+- Records requiring review.
+
+Ensure filtered records can still be edited and corrected.
+
+Search and filtering must not delete or alter the underlying event records.
+
+---
+
+## 20. SESSION-ONLY DATA AND PRIVACY
+
+The project is designed to operate without a permanent application database.
+
+Keep the browser-based temporary-processing model unless the existing architecture presents a concrete blocker.
+
+Do not add unnecessary authentication, a cloud database, or permanent event storage.
+
+Preserve the application's local/session-only data-processing principle.
+
+The application should explain that:
+
+- Uploaded source files remain in the active browser session.
+- Extracted event data is held temporarily.
+- The generated PDF is created from the current session data.
+- Starting a new project clears the session workspace.
+- Reloading the application can clear in-memory work.
+
+Do not promise that browser memory is securely erased merely because a React state variable has been cleared.
+
+Do not send documents to an external AI service unless a genuine optional integration is implemented and activated by the user.
+
+The application must not require a paid AI API to function.
+
+---
+
+## 21. ERROR HANDLING
+
+Handle errors gracefully.
+
+Test:
+
+- Empty files.
+- Corrupted DOCX/PDF.
+- Unsupported files.
+- OCR errors.
+- Missing event titles.
+- Missing dates.
+- Missing descriptions.
+- Unsupported embedded images.
+- No detectable records.
+- Large documents.
+- Duplicate records.
+- PDF-generation errors.
+
+Provide clear status messages and allow retries where useful.
+
+Do not expose raw runtime stack traces in the normal user interface.
+
+An imperfect extraction should generate a warning and provide a way to review the record, rather than silently inventing information.
+
+---
+
+## 22. TECHNICAL CONSTRAINTS
+
+Continue using the current TypeScript/React/Vite workspace.
+
+The existing artifact already has:
+
+- React and TypeScript.
+- Vite.
+- PDF.js.
+- Mammoth.
+- Tesseract.js.
+- jsPDF.
+- Existing UI components and styles.
+
+Reuse compatible dependencies already installed where possible.
+
+Do not migrate the application to Streamlit or recreate it in Python.
+
+Do not introduce an unnecessary backend or database.
+
+Keep the existing `pnpm` workspace conventions.
+
+Do not casually replace `package.json`, `pnpm-lock.yaml`, `.replit`, or workspace configurations.
+
+If a dependency change is genuinely necessary:
+
+1. Explain the reason.
+2. Update the correct artifact package.
+3. Update the lockfile appropriately.
+4. Verify the application still builds.
+
+Retain existing working features and avoid unnecessary architectural changes.
+
+---
+
+## 23. TESTING AND VALIDATION
+
+Use the two supplied documents as actual test inputs.
+
+### Test A: Data-format import
+
+Upload the 2025–26 Newsletter Data Format DOCX.
+
+Verify:
+
+- Rows are recognized correctly.
+- Month headings are carried forward appropriately.
+- Valid records are detected.
+- Descriptions are preserved.
+- Multiple images stay with the correct event.
+- Incomplete records are flagged.
+- No unnecessary duplicate events are added.
+
+### Test B: Reference design
+
+Generate a PDF from a controlled set of reviewed events and compare it visually with Newsletter Volume 4, Issue 1.
+
+Check:
+
+- Cover.
+- Masthead.
+- Logos.
+- Campus photograph.
+- Department introduction.
+- Category headings.
+- Framed event panels.
+- Multiple-photo layout.
+- Page numbers.
+- Section ordering.
+- Student achievement layout.
+- Faculty achievement layout.
+- Placemental Success layout.
+
+Use the reference PDF for visual comparison without simply embedding all 24 original pages into the output.
+
+The generated PDF must be a newly produced publication from the corrected event data.
+
+### Test C: State changes
+
+After generating a PDF preview, make changes to the event state.
+
+Verify that the old preview is invalidated and that regenerating produces the correct new content.
+
+### Test D: Production readiness
+
+Run:
+
+- Type checking.
+- Build.
+- Relevant automated tests.
+- Manual upload/import test.
+- PDF generation test.
+- Browser preview test.
+- Download test.
+
+Fix errors before declaring the task complete.
+
+---
+
+## 24. DO NOT MISREPRESENT TEST RESULTS
+
+Do not say a feature works simply because its code exists.
+
+Do not say the PDF matches the reference without inspecting the generated PDF.
+
+Do not say all events were imported correctly without checking the import results.
+
+Where OCR or automatic classification remains uncertain, state the limitation and ensure that the user can review the data.
+
+If a test cannot be completed in the current environment, identify it clearly rather than reporting it as passed.
+
+---
+
+## 25. DEVELOPMENT PRIORITIES
+
+Work in this order.
+
+### Priority 1 — Critical reliability
+
+- Fix all current runtime, type-check, and build errors.
+- Fix structured DOCX table extraction.
+- Ensure image-to-event associations are correct.
+- Eliminate duplicated or spurious event records.
+- Ensure edited data reaches the PDF generator.
+
+### Priority 2 — Newsletter fidelity
+
+- Improve the cover and front matter.
+- Add editable Volume and Issue fields.
+- Match section names and ordering.
+- Refine framed event panels.
+- Improve image layout and typography.
+- Fix page breaks and overflow.
+- Refine Student Achievements, Faculty Achievements, and Placemental Success.
+
+### Priority 3 — Review workflow
+
+- Verify drag-and-drop.
+- Verify event reordering.
+- Verify event editing.
+- Verify adding and deleting events.
+- Verify categories, search, filters, and counts.
+
+### Priority 4 — Final verification
+
+- Generate the PDF.
+- Inspect its pages.
+- Test the preview.
+- Download and open the file.
+- Compare the output with the original Volume 4 PDF.
+- Resolve all important issues found.
+
+---
+
+## 26. DEFINITION OF DONE
+
+The project is complete only when all of the following are true:
+
+- The existing application runs.
+- The source DOCX can be uploaded and processed.
+- Structured table records import correctly.
+- Event descriptions are preserved.
+- Photographs remain associated with the appropriate records.
+- Category corrections work.
+- Drag-and-drop works.
+- Event reordering works.
+- Event editing works.
+- Add/delete operations work.
+- Dashboard statistics update correctly.
+- The pie chart represents the latest state.
+- Volume and Issue are configurable.
+- Report front matter is editable.
+- The PDF follows the Volume 4 publication structure.
+- Page layout is readable and professional.
+- The PDF contains the latest corrected event details and photographs.
+- The preview and download work.
+- The application continues to work without a paid AI API.
+- Temporary session data can be cleared.
+- Type checking and production build succeed.
+- Testing results are reported honestly.
+
+---
+
+## 27. FINAL INSTRUCTION
+
+Start by inspecting the existing repository and running the current project.
+
+Then fix the implementation in the actual project files.
+
+Do not merely return advice, a proposed plan, a list of code snippets, or a new mockup.
+
+Do not replace the working application with a simplified alternative.
+
+Continue from the existing implementation, make targeted fixes, test each critical feature, and verify the generated PDF against the supplied reference.
+
+The final deliverable must be a working Event Newsletter Studio that takes the supplied 2025–26 event data, lets the faculty review and correct it, and generates a professional PDF closely following **AIML-Gazette, Volume 4, Issue 1, AY 2025–26**.
+
+Once complete, provide a concise summary of:
+
+1. Problems identified.
+2. Files changed.
+3. Features fixed.
+4. Build and test results.
+5. Any remaining limitations.
+
+Do not claim completion until the implementation and generated PDF have actually been tested.

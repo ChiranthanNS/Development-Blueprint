@@ -80,10 +80,12 @@ export function parseNewsletterTableHtml(html: string): { rows: NewsletterSource
       unsupportedImages += 1;
       return [];
     });
-    const description = cells[compactRow ? 3 : 4].text;
+    const description = cells.slice(compactRow ? 3 : 4).map(cell => cell.text).filter(Boolean).join('\n');
     const eventName = values[compactRow ? 1 : 2];
+    const normalizedValues = values.map(value => value.toLowerCase().replace(/[^a-z]+/g, ' ').trim());
+    if (normalizedValues[0] === 'event month' && normalizedValues[1] === 'event type') continue;
     if (!description.trim() && !eventName.trim() && !images.length) continue;
-    if (description.trim().length < 18 && !images.length) continue;
+    if (description.trim().length < 18 && !eventName.trim() && !images.length) continue;
     rows.push({ month: currentMonth, eventType: currentType, eventName, description, images });
   }
   return { rows, unsupportedImages };
@@ -313,9 +315,18 @@ function newsletterCategory(row: NewsletterSourceRow, categories: Category[]): s
   };
   const categoryById = (id: string) => categories.find(category => category.id === id)?.id;
   const fallback = categories.find(category => category.id === 'other')?.id || categories[0]?.id || '';
-  if (/placement|placed\s*@|offer letter|salary package/.test(combined)) return categoryById(categoryIds.placements) || fallback;
+  // Prefer an explicit source type to weaker words in an achievement description.
   if (/faculty/.test(type) && /achiv|achiev/.test(type)) return categoryById(categoryIds.faculty) || fallback;
   if (/(?:student|stdent)/.test(type) && /achiv|achiev|activit/.test(type)) return categoryById(categoryIds.students) || fallback;
+  if (/placement|placed|placemental/.test(type)) return categoryById(categoryIds.placements) || fallback;
+  if (/workshop/.test(type)) return categoryById(categoryIds.workshops) || fallback;
+  if (/technical talk|technical session|guest lecture|seminar/.test(type)) return categoryById(categoryIds.talks) || fallback;
+  if (/code.?athon|codathon|coding contest|programming contest/.test(type)) return categoryById(categoryIds.codathons) || fallback;
+  if (/hack.?athon|hack.?ai.?thon|ideathon|buildathon/.test(type)) return categoryById(categoryIds.hackathons) || fallback;
+  if (/alumni/.test(type)) return categoryById(categoryIds.alumni) || fallback;
+  if (/club/.test(type)) return categoryById(categoryIds.clubs) || fallback;
+  if (/outreach/.test(type)) return categoryById(categoryIds.outreach) || fallback;
+  if (/placement|placed\s*@|offer letter|salary package/.test(combined)) return categoryById(categoryIds.placements) || fallback;
   if (/alumni/.test(combined)) return categoryById(categoryIds.alumni) || fallback;
   if (/club/.test(type) || /club activity/.test(row.eventName.toLowerCase())) return categoryById(categoryIds.clubs) || fallback;
   if (/outreach/.test(combined)) return categoryById(categoryIds.outreach) || fallback;
@@ -349,13 +360,17 @@ export function eventsFromNewsletterRows(rows: NewsletterSourceRow[], sourceFile
     const date = findDate(row.description) || row.month;
     const category = newsletterCategory(row, categories);
     const unknownType = !row.eventType.trim();
+    const fallbackTitle = !row.eventName.trim() || /^(?:department activity|faculty achievements?|student activities?|student achievements?|workshop|technical talk|codeathon|codathon|hackathon|outreach|club activity|alumni interaction|fdp organized)$/i.test(row.eventName.trim());
     return {
       id: id(), name, description: row.description.trim(), date, time: valueAfter(row.description, ['time']),
       venue: valueAfter(row.description, ['venue', 'location']), organizer: valueAfter(row.description, ['organizer', 'host', 'coordinator']),
       department: '', club: '', participants: '', teamSize: '', category, images: row.images,
       confidence: unknownType ? 0.62 : 0.96, score: unknownType ? 0 : 5,
-      classificationSource: 'Newsletter data form', needsReview: !name || !row.description.trim() || !row.month || unknownType,
+      classificationSource: 'Newsletter data form',
+      needsReview: !name || fallbackTitle || !row.description.trim() || !date || unknownType,
       sourceFile, order: startOrder + index,
+      sourceEventType: row.eventType, sourceEventName: row.eventName, sourceMonth: row.month,
+      sourceDescription: row.description,
     };
   });
 }

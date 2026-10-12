@@ -5,15 +5,19 @@ export type EventRecord = {
   organizer: string; department: string; club: string; participants: string; teamSize: string;
   category: string; images: string[]; confidence: number; score: number;
   classificationSource: string; needsReview: boolean; sourceFile: string; order: number;
+  sourceEventType?: string; sourceEventName?: string; sourceMonth?: string; sourceDescription?: string;
 };
 export type SourceFile = { id: string; file: File; status: 'ready' | 'working' | 'done' | 'warning' | 'error'; message?: string };
 export type ReportInfo = {
   institution: string;
   department: string;
   title: string;
+  volume: string;
+  issue: string;
   academicYear: string;
   period: string;
   subtitle: string;
+  coverLead: string;
   logo: string;
   departmentLogo: string;
   coverImage: string;
