@@ -1,1 +1,1 @@
-- [Session-only event data](event-data-privacy.md) — Institutional event files and extracted records must remain temporary in the browser.
+- [Session-only event data](event-data-privacy.md) — Treat sample DOCX/PDF as input/output references; keep actual event files and derived records temporary.
