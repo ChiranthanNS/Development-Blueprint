@@ -112,6 +112,9 @@ function App() {
   const generationVersion = useRef(0);
 
   useEffect(() => {
+    document.cookie = 'sidebar_state=; path=/; max-age=0';
+  }, []);
+  useEffect(() => {
     if (!pdfUrl) return;
     return () => URL.revokeObjectURL(pdfUrl);
   }, [pdfUrl]);
