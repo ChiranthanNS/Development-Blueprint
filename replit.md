@@ -8,7 +8,7 @@ Client-side event organizer: upload local source files, review categorized event
 - The Replit preview is served by the managed artifact workflow `artifacts/event-newsletter: web`.
 - For local development: `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run dev`.
 - Typecheck: `pnpm --filter @workspace/event-newsletter run typecheck`.
-- Tests: `pnpm --filter @workspace/event-newsletter run test`.
+- Tests: `pnpm --filter @workspace/event-newsletter run test` (parsing, duplicate review, category movement, and generated PDF checks).
 - Production build: `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run build`.
 
 ## Project map

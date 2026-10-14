@@ -1,1 +1,2 @@
 - [Session-only event data](event-data-privacy.md) — Treat sample DOCX/PDF as input/output references; keep actual event files and derived records temporary.
+- [PDF.js test runtime](pdfjs-test-runtime.md) — Node 20 needs a conditional `Promise.withResolvers` shim when tests parse PDFs with PDF.js 6.

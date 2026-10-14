@@ -5,7 +5,7 @@ import NotFound from '@/pages/not-found';
 import { allowedFile, eventsFromNewsletterRows, eventsFromText, readLocalFile } from './extract';
 import { buildNewsletterPdf } from './newsletter-pdf';
 import type { Category, EventRecord, ReportInfo, SourceDiagnostics, SourceFile } from './studio-types';
-import { moveEventToCategory, possiblySameEvent } from './studio-utils';
+import { moveEventToCategory, possiblySameEvent, resolveDuplicateCandidate } from './studio-utils';
 import './studio.css';
 
 const defaultCategories: Category[] = [
@@ -309,7 +309,7 @@ function App() {
   const resolveDuplicate = (keepBoth:boolean) => {
     const [current,...remaining] = duplicateQueue;
     if (current) {
-      if (keepBoth) setEvents(old => [...old,{...current.candidate,order:old.length}]);
+      if (keepBoth) setEvents(old => resolveDuplicateCandidate(old, current.candidate, true));
       setFiles(old => old.map(file => file.id === current.candidate.sourceId && file.diagnostics
         ? (() => {
             const diagnostics = {
@@ -325,28 +325,6 @@ function App() {
     }
     setDuplicateQueue(remaining);
     if (!remaining.length) setModal(null);
-  };
-  const discardAllDuplicates = () => {
-    const discarded = duplicateQueue.length;
-    const discardedByFile = new Map<string, DuplicateCandidate[]>();
-    duplicateQueue.forEach(candidate => {
-      const sourceId = candidate.candidate.sourceId;
-      if (sourceId) discardedByFile.set(sourceId, [...(discardedByFile.get(sourceId) || []), candidate]);
-    });
-    setFiles(old => old.map(file => {
-      const candidates = discardedByFile.get(file.id);
-      if (!candidates?.length || !file.diagnostics) return file;
-      const diagnostics = {
-        ...file.diagnostics,
-        duplicateCandidates: Math.max(0, file.diagnostics.duplicateCandidates - candidates.length),
-        recordsNeedingReview: Math.max(0, file.diagnostics.recordsNeedingReview - candidates.filter(item => eventNeedsReview(item.candidate)).length),
-      };
-      const hasWarnings = Boolean(file.message) || diagnostics.unassignedPhotos > 0 || diagnostics.unsupportedImages > 0 || diagnostics.failedImages > 0 || diagnostics.duplicateCandidates > 0;
-      return { ...file, diagnostics, status: hasWarnings ? 'warning' : 'done' };
-    }));
-    setDuplicateQueue([]);
-    setModal(null);
-    notify(`${discarded} possible duplicate candidate${discarded === 1 ? '' : 's'} discarded. Existing events were kept.`);
   };
   const imageToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(); reader.readAsDataURL(file);
@@ -546,8 +524,60 @@ function App() {
     {(modal==='edit'||modal==='add')&&activeEvent&&<EventModal event={activeEvent} categories={categories} onClose={()=>{setModal(null);setActiveEvent(null)}} onSave={saveEvent} onImages={addEventImages} title={modal==='add'?'Add an event':'Review event details'} />}
     {modal==='delete'&&<ConfirmModal title="Remove this event?" detail="This event will be removed from the current session register. The source file remains available." cancel={()=>setModal(null)} confirm={deleteEvent} confirmText="Remove event"/>}
     {modal==='new-project'&&<ConfirmModal title="Start a new project?" detail="The current files, event edits, report details and preview will be cleared from memory. This action cannot be undone." cancel={()=>setModal(null)} confirm={startNewProject} confirmText="Clear workspace"/>}
-    {modal==='duplicate'&&duplicateQueue[0]&&<div className="modal-backdrop" role="presentation"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-title"><div className="modal-head"><div><div className="eyebrow">Possible duplicate · {duplicateQueue.length} remaining</div><h2 id="duplicate-title">This event may already be here.</h2><p>Discarding keeps the existing event and leaves the new candidate out. You can discard one or all remaining candidates.</p></div><button className="btn icon" onClick={()=>resolveDuplicate(false)} aria-label="Skip candidate"><X size={16}/></button></div><div className="duplicate-box"><strong>Existing event</strong><div>{duplicateQueue[0].match.name}</div><small>{duplicateQueue[0].match.date||'No date recorded'} · {duplicateQueue[0].match.sourceFile}</small></div><div className="duplicate-box"><strong>New source wording</strong><div>{duplicateQueue[0].candidate.name}</div><small>{duplicateQueue[0].candidate.date||'No date recorded'} · {duplicateQueue[0].candidate.sourceFile}</small></div><div className="modal-footer"><div><button className="btn danger" onClick={discardAllDuplicates}>Discard all {duplicateQueue.length} candidates</button><button className="btn" onClick={()=>resolveDuplicate(false)}>Discard candidate</button></div><div><button className="btn primary" onClick={()=>{resolveDuplicate(true);notify('Candidate added for review.')}}>Keep both events</button></div></div></div></div>}
+    {modal==='duplicate'&&duplicateQueue[0]&&<DuplicateReviewModal
+      review={duplicateQueue[0]}
+      categories={categories}
+      remaining={duplicateQueue.length}
+      onKeepExisting={()=>resolveDuplicate(false)}
+      onKeepBoth={()=>{resolveDuplicate(true);notify('Candidate added for review.')}} />}
     {toast&&<div className="toast-note" role="status">{toast}</div>}
+  </div>;
+}
+
+function DuplicateReviewModal({
+  review,
+  categories,
+  remaining,
+  onKeepExisting,
+  onKeepBoth,
+}: {
+  review: DuplicateCandidate;
+  categories: Category[];
+  remaining: number;
+  onKeepExisting: () => void;
+  onKeepBoth: () => void;
+}) {
+  const categoryName = (id: string) => categories.find(category => category.id === id)?.name || 'Uncategorized';
+  const renderEvent = (event: EventRecord, heading: string) => <section className="duplicate-box" aria-label={heading}>
+    <h3>{heading}</h3>
+    <dl>
+      <div><dt>Title</dt><dd>{event.name || 'Untitled event'}</dd></div>
+      <div><dt>Date</dt><dd>{event.date || 'No date recorded'}</dd></div>
+      <div><dt>Category</dt><dd>{categoryName(event.category)}</dd></div>
+      <div><dt>Description</dt><dd>{event.description || 'No description recorded'}</dd></div>
+      <div><dt>Source file</dt><dd>{event.sourceFile || 'Unknown source'}</dd></div>
+      <div><dt>Photos</dt><dd>{event.images.length} associated</dd></div>
+    </dl>
+  </section>;
+
+  return <div className="modal-backdrop" role="presentation">
+    <div className="modal duplicate-review-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-title">
+      <div className="modal-head">
+        <div>
+          <div className="eyebrow">Possible duplicate · {remaining} remaining</div>
+          <h2 id="duplicate-title">Review these event records.</h2>
+          <p>They share a title and compatible details. This is only a suggestion; compare both descriptions and photos before deciding. Nothing is removed until you choose an action.</p>
+        </div>
+      </div>
+      <div className="duplicate-review-grid">
+        {renderEvent(review.match, 'Existing event')}
+        {renderEvent(review.candidate, 'Newly imported candidate')}
+      </div>
+      <div className="modal-footer duplicate-review-actions">
+        <button className="btn" onClick={onKeepBoth}>Keep Both Events</button>
+        <button className="btn danger" onClick={onKeepExisting}>Keep Existing, Discard New Duplicate</button>
+      </div>
+    </div>
   </div>;
 }
 

@@ -71,6 +71,6 @@ No API configuration is required. `.env.example` is included as a note that this
 
 ## Verify
 
-- `pnpm --filter @workspace/event-newsletter run test` — parser, duplicate matching, and category-count tests.
+- `pnpm --filter @workspace/event-newsletter run test` — parser, duplicate review decisions, category movement, and generated PDF checks.
 - `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run typecheck` — TypeScript validation.
 - `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run build` — production frontend build.

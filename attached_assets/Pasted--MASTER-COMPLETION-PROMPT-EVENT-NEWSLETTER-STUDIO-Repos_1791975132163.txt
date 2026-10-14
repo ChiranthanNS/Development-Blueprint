@@ -1,0 +1,222 @@
+# MASTER COMPLETION PROMPT — EVENT NEWSLETTER STUDIO
+
+Repository: https://github.com/ChiranthanNS/Development-Blueprint
+
+Application directory: `artifacts/event-newsletter`
+
+You are continuing an existing React + TypeScript + Vite application called Event Newsletter Studio. The project already has file extraction, DOCX table parsing, PDF/OCR support, category classification, event review, drag-and-drop category reassignment, a PDF generator, a session-only privacy model, and a basic duplicate-review queue.
+
+**Do not rebuild the application. Inspect the current implementation, preserve working functionality, fix the remaining problems, and verify the full workflow. My Replit credits are limited, so make the smallest reliable set of changes.**
+
+## 1. Audit before coding
+
+Inspect these existing files first:
+
+- `src/App.tsx`
+- `src/extract.ts`
+- `src/studio-utils.ts`
+- `src/studio-types.ts`
+- `src/newsletter-pdf.ts`
+- `src/studio.css`
+- `src/index.css`
+- `test/studio.test.mjs`
+- `README.md` and `package.json`
+
+Use the actual project state to determine which requirements already work and which are incomplete. Do not duplicate features that are implemented correctly.
+
+Create a short internal checklist, implement the remaining fixes, and continue until the relevant checks pass. Do not stop after producing an audit report.
+
+## 2. Highest priority: correct duplicate-event detection
+
+This requirement is critical.
+
+I want to remove duplicate **events**, not duplicate participants.
+
+The same participant can legitimately take part in many different events. Their participation in multiple events must never cause one event to be removed, merged, or flagged as a duplicate.
+
+Review and improve `possiblySameEvent()` in `src/studio-utils.ts`, the duplicate queue in `src/App.tsx`, and the corresponding tests.
+
+### Define event identity using relevant evidence
+
+Compare event records using a combination of:
+
+- Normalized event title.
+- Event date or month, when available.
+- Event description and distinctive subject matter.
+- Event type.
+- Venue or organizer, when available.
+- Source information that can establish the records refer to the same event.
+
+Normalize harmless formatting differences, including capitalization, repeated whitespace, punctuation, and common date-format variations where safe.
+
+Do not treat these fields as proof of a duplicate:
+
+- Participant names.
+- Participants appearing in multiple events.
+- Category alone.
+- The same date alone.
+- The same department, club, venue, or organizer alone.
+- A generic description shared by unrelated events.
+
+Participant lists can be preserved as event information, but they must not determine whether two event records refer to the same event.
+
+Do not rely on an excessively broad description-similarity score. Many legitimate events use generic phrases such as “students participated enthusiastically” or “the event enhanced technical knowledge.”
+
+### Apply conservative duplicate rules
+
+1. Strong matches, such as the same normalized event title and compatible date/details, should be identified as likely duplicates.
+2. Records with the same title but conflicting dates or clearly different event details must not be automatically discarded.
+3. Different event titles should generally remain separate unless there is unusually strong evidence that they are merely formatting variants of the same title and refer to the same occurrence.
+4. Missing dates should not automatically prevent matching, but the other evidence must be strong enough.
+5. If evidence is uncertain, mark the records as possible duplicates and ask the user to decide.
+6. Never silently discard a record because the classifier thinks it is similar to another.
+
+Keep the existing lightweight approach unless a small, testable improvement is needed. Do not add an AI API or cloud processing service.
+
+### Correct the duplicate-review interface
+
+Provide a clear review dialog for each candidate showing:
+
+- Existing event title, date, category, description, and source file.
+- Newly imported candidate title, date, category, description, and source file.
+- A clear explanation that the records appear similar.
+- **Keep Existing, Discard New Duplicate** and **Keep Both Events** actions.
+
+Where useful, allow the user to review or edit the new record before deciding.
+
+Only remove the newly imported candidate after the user confirms that it is a duplicate. Preserve the existing event and all its original data.
+
+When the user chooses Keep Both Events, add the new record without overwriting, merging, or replacing the existing event.
+
+If the user discards a duplicate, keep accurate import diagnostics and review counts. Do not accidentally reduce unrelated warning counts or remove other records.
+
+Never create a global “delete duplicates” operation that removes records without giving the user a meaningful opportunity to review uncertain matches.
+
+### Test duplicate behavior thoroughly
+
+Add automated tests for at least the following cases:
+
+- Exact duplicate event.
+- Same title and date with harmless whitespace/capitalization changes.
+- Same title but clearly conflicting dates.
+- Different event titles on the same date.
+- Different events with generic or similar descriptions.
+- Same participant mentioned in two separate events.
+- Same participant list but distinct events.
+- Same event imported from two different files.
+- Missing dates with otherwise strong matching evidence.
+- Ambiguous records that should go to manual review.
+- Keep Both preserves both complete event records.
+- Discard Duplicate removes only the new candidate.
+- Event images and source metadata remain associated with the correct event.
+
+Ensure the tests explicitly prove that participant overlap does not cause a duplicate classification.
+
+## 3. Fix extraction and import reliability
+
+Inspect the current DOCX, PDF, and image extraction logic.
+
+Correct actual defects in:
+
+- Structured newsletter-table row parsing.
+- Month and event-type inheritance across rows.
+- Empty event-name handling.
+- Event title and description association.
+- Embedded images remaining associated with the correct source event.
+- Unassigned photo handling.
+- Unsupported or damaged file handling.
+- Duplicate records discovered across multiple uploaded files.
+- Import diagnostics and record counts.
+
+Preserve source content rather than inventing missing details.
+
+Do not claim that all event details have been extracted when the document parser could not establish them. Make uncertain records visible and editable.
+
+Avoid introducing new extraction libraries if the existing implementation can be fixed.
+
+## 4. Ensure the category workflow remains reliable
+
+Keep the current simple workflow:
+
+**Upload → Analyze → Review Categories → Preview → Download → Start New File**
+
+Verify that:
+
+- Automatically suggested categories are editable.
+- An event can be moved between categories using drag-and-drop.
+- A dropdown or equivalent accessible control also changes its category.
+- Moving an event never loses its description, images, original source details, or other fields.
+- Category counts update correctly.
+- Category changes are reflected in the final PDF.
+- Uncertain classifications and missing details remain visible for review.
+- Search and category filters do not accidentally hide events from the actual output.
+- A user can return from preview to edit categories.
+- Starting a new project clears the previous project's events, files, images, duplicate queue, preview, and temporary browser resources.
+
+Keep the current category layout unless testing reveals a real usability problem. Prioritize reliable behavior over cosmetic redesign.
+
+## 5. Validate the final PDF
+
+Inspect `src/newsletter-pdf.ts` and its integration with the preview screen.
+
+Make sure the generated PDF uses the latest in-memory event register and category assignments.
+
+Fix any actual problems with:
+
+- Duplicate events appearing repeatedly in the output.
+- Correct category ordering.
+- Long descriptions and titles overflowing the page.
+- Missing, distorted, or incorrectly associated images.
+- Unexpected blank pages or broken page breaks.
+- Unreadable typography and overlapping content.
+- Stale preview content after event edits.
+- Failed image generation or export errors.
+
+The app currently documents PDF as the supported output format. Keep PDF as the primary export. Do not add DOCX or other output formats unless they can genuinely be generated, tested, and maintained without compromising the core workflow.
+
+## 6. Keep privacy strict
+
+Preserve the client-side-only privacy architecture.
+
+Uploaded files, text, participant names, event records, images, review decisions, and generated documents must remain in browser memory. Do not add a database, application backend for document processing, telemetry, persistent browser storage, or external AI processing.
+
+Do not log document contents in the console or transmit their content to a remote service.
+
+Temporary downloads and browser memory are expected parts of local processing. Clear in-memory project data when the user starts a new project and revoke temporary object URLs when appropriate.
+
+Verify the code paths involved instead of trusting privacy labels in the UI.
+
+## 7. Keep the UI simple
+
+Do not add dashboards, accounts, cloud sync, AI chat, elaborate settings, or features outside the purpose of this application.
+
+Preserve the existing visual design where it is already good. Correct only genuine usability problems, including confusing duplicate prompts, misleading diagnostics, dead buttons, broken navigation, unclear errors, and inaccessible category controls.
+
+## 8. Run tests and verify the workflow
+
+From the repository root, use the existing commands where supported:
+
+`pnpm --filter @workspace/event-newsletter run test`
+
+`PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run typecheck`
+
+`PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run build`
+
+Fix relevant failures instead of merely reporting them. If a command cannot be run, explain why.
+
+Test the complete application using realistic event data, including two legitimate events with overlapping participants. Verify the generated PDF instead of assuming successful compilation guarantees a correct document.
+
+Do not claim a live browser test, privacy test, or download test passed unless it was actually performed.
+
+## 9. Final completion report
+
+When finished, give me a concise and truthful report stating:
+
+1. What was already implemented and retained.
+2. What was fixed in duplicate-event detection.
+3. How participant overlap is handled.
+4. What was fixed in extraction, category review, and PDF export.
+5. Test, type-check, and build results.
+6. Any remaining limitations or tests that could not be performed.
+
+Do not stop at an audit. Implement the fixes in the existing codebase, keep the change set focused, and verify the results.
