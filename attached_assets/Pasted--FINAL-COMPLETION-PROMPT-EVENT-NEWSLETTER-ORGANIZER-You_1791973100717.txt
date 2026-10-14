@@ -1,0 +1,343 @@
+# FINAL COMPLETION PROMPT — EVENT NEWSLETTER ORGANIZER
+
+You are working on my existing application in Replit, connected to this repository:
+
+https://github.com/ChiranthanNS/Development-Blueprint
+
+Your task is to **finish the existing application and make it production-ready** according to the workflow and requirements below.
+
+I am a student with limited Replit Agent credits. Work carefully, avoid unnecessary iterations, do not repeatedly redesign working features, and do not waste credits adding features I did not request.
+
+## 1. First inspect the existing project
+
+Before changing code:
+
+- Inspect the existing project structure, source code, dependencies, and current UI.
+- Identify what already works, what is incomplete, and what is broken.
+- Work in the existing newsletter application directory and preserve useful working functionality.
+- Do not create a second application, duplicate components, or rewrite the entire project unnecessarily.
+- Reuse existing libraries and dependencies wherever practical.
+- Make the necessary changes directly, then run the available checks and test the complete workflow.
+
+Do not stop after producing an audit or a list of recommendations. **Implement and verify the fixes.**
+
+## 2. The product: a simple event categorization and newsletter organizer
+
+The application should do one job exceptionally well:
+
+**Upload → Automatically categorize → Manually correct → Preview → Download → Start another project.**
+
+Remove or simplify confusing sections, unnecessary configuration panels, redundant buttons, and features unrelated to this workflow.
+
+The website must be clean, modern, responsive, intuitive, and suitable for real users.
+
+## 3. Step 1 — Upload a file
+
+The first screen should present one obvious upload area.
+
+Allow users to upload supported files such as:
+
+- DOCX containing event details, including tables.
+- PDF containing event information.
+- Images where supported by the current application.
+
+Support drag-and-drop upload as well as a normal file picker.
+
+Show the selected filename, file type, size, upload/processing progress, and clear errors when a file cannot be processed.
+
+Validate file types and sensible size limits. Do not pretend a file was successfully processed if extraction failed.
+
+Provide one clear primary action: **Analyse and Organize**.
+
+Do not ask the user to configure numerous options before the analysis begins.
+
+## 4. Step 2 — Extract and categorize events automatically
+
+Extract the event information from the uploaded file as accurately as possible.
+
+Preserve relevant information such as:
+
+- Event name
+- Event date or month
+- Event description
+- Event type
+- Associated event images
+- Other useful information actually present in the source
+
+For DOCX files containing tables, correctly read the table rows and associate each event with its own data and images. Avoid mixing details between neighbouring events.
+
+For PDFs, extract text accurately and use existing OCR support for scanned pages where possible.
+
+Automatically categorize events based on their content. Use a sensible set of categories, such as:
+
+- Workshops and Training
+- Seminars, Talks and Guest Lectures
+- Technical Competitions and Hackathons
+- Non-Technical Events
+- Outreach and Community Activities
+- Department Activities
+- Student Achievements
+- Faculty Achievements
+- Placements and Career Success
+- Other / Needs Review
+
+These are suggested default categories, not a reason to force every event into an unsuitable category. Reuse any relevant category structure already established by the project.
+
+Do not silently discard events, descriptions, dates, or images.
+
+Avoid duplicate events where possible. When classification is uncertain, mark an event **Needs Review** instead of pretending the classification is certain.
+
+Show the number of events extracted and make missing information or extraction problems visible.
+
+The user's job should be to verify the result, not manually classify every event from scratch.
+
+## 5. Step 3 — Category review with drag-and-drop
+
+This is a core feature and must be implemented properly.
+
+Create a visual category workspace inspired by the usability of iLovePDF's editing experience. Do not copy its branding or build a complete PDF editor.
+
+Show the detected categories as clear columns, panels, or grouped sections.
+
+Each event should appear as a compact, readable card showing its title, date when available, a short description, and a thumbnail when an image exists.
+
+The user must be able to:
+
+- Drag an event card from one category and drop it into another.
+- Move an event back to its original category.
+- Change an event's category using an accessible alternative to dragging, such as a dropdown.
+- Edit an event's title, date, description, and category.
+- Inspect its associated images.
+- Remove an event if the user explicitly chooses to do so.
+- See the number of events in each category.
+- Identify events that still need review.
+
+When an event is moved, its category must update immediately and consistently throughout the application.
+
+Drag-and-drop must work on desktop and remain usable on mobile, where touch interactions may be difficult. Provide keyboard-accessible alternatives where practical.
+
+Do not lose the event's data or image when moving it between categories.
+
+Use a proper drag-and-drop library already installed in the project if possible. Add a new dependency only when justified.
+
+The user must be able to finish reviewing the categories without navigating through unrelated dashboards, reports, or settings.
+
+Provide a clear **Continue to Preview** action.
+
+## 6. Step 4 — Generate and preview the final draft
+
+Generate a real document preview from the reviewed events.
+
+The preview must reflect the actual output, not just a list of event titles.
+
+Organize events by the categories selected by the user. Each category should have a clear heading, and each event should have a clean layout with its title, relevant date, description, and associated images where available.
+
+Use a professional newsletter-style visual design with:
+
+- Consistent typography
+- Proper spacing and margins
+- Clear category headings
+- Readable paragraphs
+- Sensible image sizing and alignment
+- Consistent page numbering where appropriate
+- No overlapping or clipped content
+- No unexpectedly blank pages
+- No orphaned headings where reasonably avoidable
+
+Use the reference newsletter and files already available in the project, if present, to understand the intended structure and style. Do not hardcode reference content into user-generated output.
+
+The preview must update when the user edits an event or changes its category.
+
+Provide practical preview controls such as page navigation and zoom if supported by the existing implementation. Avoid building a complicated editing interface at this stage.
+
+Allow the user to return to category review without losing their current work.
+
+Before download, ensure the final document is generated from the latest reviewed data rather than stale preview state.
+
+## 7. Step 5 — Download the output format selected by the user
+
+Provide one straightforward export panel with a clear label such as **Download Your Newsletter**.
+
+Offer appropriate output formats:
+
+- **PDF** — the main, polished newsletter document.
+- **DOCX** — an editable Word document, where supported.
+- **Other formats** — only when the application can generate them reliably and they provide genuine value.
+
+Do not display a format option that does not actually work.
+
+If supporting multiple formats requires additional implementation, prioritize a high-quality PDF first, followed by editable DOCX.
+
+The exported document must preserve event order, category headings, text, and associated images as accurately as the selected format permits.
+
+For PDF export, ensure page breaks, image dimensions, fonts, and text wrapping are handled correctly. For DOCX export, preserve headings and images in a usable editable structure.
+
+Use a sensible default filename, with an optional ability to rename the download.
+
+Show clear feedback when export succeeds or fails. Do not claim a file has been generated until the browser has produced the download successfully.
+
+## 8. Step 6 — Finish, clear, and start another file
+
+After the user completes a download, show a simple completion screen.
+
+The screen should clearly offer:
+
+**Start New File**
+
+The user should also be able to find an **Add New File** or **Start Over** action during the workflow, not just at the end.
+
+Starting a new file must:
+
+- Ask for confirmation if unsaved work would be discarded.
+- Clear the current extracted events, categories, images, previews, temporary object URLs, and project-specific state.
+- Reset progress and return to the upload screen.
+- Never mix events from the previous file into the new file.
+- Release browser resources and revoke temporary object URLs when they are no longer needed.
+
+Support restarting if the user decides the current extraction is messy and wants to begin again from the original file.
+
+If the user returns from the preview to edit categories, preserve their work. Only clear it when they explicitly start a new project or close/refresh the session according to the application's privacy model.
+
+Make these controls easy to locate, but avoid filling the interface with duplicate reset buttons.
+
+## 9. Mandatory privacy requirement — no server-side storage
+
+This application must work as a **client-side-only document processing tool**.
+
+Uploaded files, extracted event details, images, edits, and previews must not be uploaded to an application backend or stored in a database, cloud storage, analytics platform, or remote AI service.
+
+Specifically:
+
+- Do not introduce a backend or database for event content.
+- Do not upload files to external processing APIs.
+- Do not use remote AI services to classify documents. Use local extraction and transparent rule-based classification unless a suitable on-device solution is already available.
+- Do not store uploaded content or extracted data in localStorage, sessionStorage, IndexedDB, or other persistent browser storage.
+- Do not add telemetry, tracking, or content logging.
+- Do not log extracted text, document contents, image data, or personal information in the console.
+- Avoid transmitting sensitive document information through URLs or query parameters.
+- Keep processing state in memory and generate output files in the browser.
+- Clear in-memory state and temporary object URLs when starting a new project or leaving the workflow where appropriate.
+
+Review the entire existing codebase and remove any existing functionality that violates these rules.
+
+Dependencies may be loaded as required to run the application, but document contents must remain on the user's device.
+
+Add a concise privacy note to the interface stating that uploaded files are processed locally in the browser and are not uploaded or saved by the application.
+
+**Important:** Do not claim that the app stores absolutely nothing anywhere if browser memory, temporary downloads, browser history, hosting infrastructure, or third-party infrastructure are outside the application's control. Ensure the app itself does not transmit or persist user content, and describe the privacy guarantees accurately.
+
+## 10. Clean, production-quality UI
+
+Keep the product focused. The user should understand the next action immediately at every stage.
+
+Use a small, clear progress indicator:
+
+1. Upload
+2. Review Categories
+3. Preview
+4. Download
+
+The interface should include:
+
+- A polished landing/upload screen.
+- A visible current step and sensible back/continue actions.
+- Clear loading, empty, success, and error states.
+- Helpful messages when no events are detected.
+- Responsive layouts for desktop, tablet, and mobile.
+- Accessible text contrast, labels, focus states, and keyboard controls.
+- Consistent buttons and typography.
+- Confirmation before destructive actions.
+- No fake controls, unnecessary menus, confusing dashboards, or redundant settings.
+
+Do not redesign everything just to introduce a different colour theme. Preserve the best parts of the existing visual identity and improve only what is needed for clarity and consistency.
+
+## 11. Technical quality and reliability
+
+Review the actual existing implementation for bugs before adding new code.
+
+Pay particular attention to:
+
+- DOCX table extraction.
+- PDF text extraction and OCR failures.
+- Image-to-event associations.
+- Incorrect, missing, or duplicate categories.
+- Event edits not being reflected in the preview.
+- Drag-and-drop corrupting or losing event data.
+- Exporting outdated preview content.
+- Missing images in the exported document.
+- PDF page overflow, incorrect page breaks, and blank pages.
+- Memory leaks from temporary object URLs.
+- State leaking between projects.
+- Unsupported file handling and malformed inputs.
+- Responsive and keyboard-accessible category interactions.
+
+Use a clear and consistent data model for events, category assignments, and associated images. Make sure changing category assignments does not create duplicate events or destroy event details.
+
+Keep the existing React and TypeScript architecture unless there is a compelling technical reason to change it. Avoid unnecessary migrations, major dependency upgrades, and unrelated features.
+
+## 12. Required testing before completion
+
+Do not stop at making the website look correct.
+
+Run the available type-check, lint, and production build commands. Fix errors introduced by the work and address relevant pre-existing errors that prevent the application from running.
+
+Test the complete workflow, including:
+
+1. Upload a valid DOCX containing multiple events.
+2. Verify that event names, dates, descriptions, and associated images are correctly extracted where present.
+3. Verify that automatic categorization works and uncertain cases can be reviewed.
+4. Move events between categories using drag-and-drop and the alternative category selector.
+5. Edit event information and confirm the changes appear in the preview.
+6. Generate and navigate the real preview.
+7. Download the PDF and verify its contents and page layout.
+8. Verify DOCX export if it is offered.
+9. Start a new project and confirm that no previous event or image remains.
+10. Check unsupported or malformed files and display a useful error instead of crashing.
+11. Check that document processing does not upload or persist document contents.
+12. Test the main workflow at desktop and mobile viewport sizes.
+
+Use automated tests where practical and manually inspect the actual generated output when possible. Do not mark a test as passed if it was not performed.
+
+If reference files are already present in the repository, use them as realistic test fixtures. Do not spend credits downloading duplicate copies of files that are already available.
+
+## 13. Work efficiently within my credit limits
+
+Follow this order:
+
+**Priority 1:** Make the upload → categorize → drag-and-drop review → preview → PDF download → start-new-file workflow function correctly.
+
+**Priority 2:** Fix extraction accuracy, image associations, stale state, export layout, and privacy violations.
+
+**Priority 3:** Improve visual polish, accessibility, responsive layout, and remaining reliability issues.
+
+Do not spend time on unrelated features, additional dashboards, account systems, AI integrations, cloud storage, authentication, database design, or elaborate settings pages.
+
+Inspect first, plan the smallest sensible implementation, make the required changes, and validate them. Avoid repeatedly changing the UI after it already meets the requirements.
+
+If a requested feature is blocked by a genuine technical limitation, implement the closest reliable alternative and clearly state the limitation instead of adding a broken control.
+
+## 14. Final definition of done
+
+The task is complete only when:
+
+- The user can upload a supported file.
+- Events are extracted and automatically grouped into sensible categories.
+- The user can manually correct category assignments using drag-and-drop.
+- Event edits and category changes are reflected in the actual preview.
+- The final PDF can be downloaded correctly.
+- Any additional advertised export format genuinely works.
+- The user can start over or add a new file without old content leaking into the new project.
+- The application does not upload or persist document contents.
+- The interface is simple, responsive, and understandable without instructions.
+- Relevant checks and production builds pass.
+- The major workflow has been tested, and any untested areas or remaining limitations are reported honestly.
+
+At the end, provide a short completion report with:
+
+1. What was fixed and implemented.
+2. Which tests and build checks were actually run, including their results.
+3. Which export formats work.
+4. Confirmation of the document-data privacy behaviour based on the implementation.
+5. Any remaining issues that genuinely could not be resolved.
+
+**Now complete the work in the existing project. Do not stop after planning, do not create a replacement application, and do not declare completion until the working workflow has been verified.**
