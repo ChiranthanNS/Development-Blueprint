@@ -220,6 +220,6 @@ textarea { resize:vertical; min-height:75px; }
  .field-grid { grid-template-columns:1fr; } .field.full { grid-column:auto; } .category-board { grid-template-columns:1fr; } .dropzone { min-height:220px;padding:20px; }
  .pie-layout { grid-template-columns:1fr; justify-items:center; } .pie-legend { width:100%; grid-template-columns:1fr 1fr; }
  .preview-wrap { min-height:420px;padding:9px; } .pdf-frame { height:540px; } .modal { padding:17px; }
- .download-panel { align-items:stretch; flex-direction:column; } .download-panel .btn { width:100%; } .event-category-select { max-width:none; }
+ .download-panel { align-items:stretch; flex-direction:column; } .download-panel .btn { width:100%; } .event-category-select { max-width:none; min-height:40px; } .event-actions .btn { min-height:40px; }
  .analysis-result { align-items:flex-start; flex-wrap:wrap; } .analysis-result > span { min-width:calc(100% - 34px); } .analysis-result .btn { margin-left:24px; }
 }

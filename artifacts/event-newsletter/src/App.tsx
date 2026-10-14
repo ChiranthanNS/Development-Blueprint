@@ -254,6 +254,7 @@ function App() {
   const removeFile = (id: string) => {
     setFiles(old => old.filter(f => f.id !== id));
     setPhotoTargetByFile(old => { const next = { ...old }; delete next[id]; return next; });
+    notify('Source file removed. Events already imported from it remain in your session.');
   };
   const attachUnmatchedPhotos = (fileId: string) => {
     const source = files.find(file => file.id === fileId);
@@ -287,7 +288,7 @@ function App() {
     notify('Session workspace cleared.');
   };
   const requestNewProject = () => {
-    if (files.length || events.length || pdfUrl) setModal('new-project');
+    if (files.length || events.length || pdfUrl || report !== defaultReport) setModal('new-project');
     else startNewProject();
   };
   const saveEvent = (event: EventRecord) => {
@@ -427,7 +428,7 @@ function App() {
                   {f.message&&<div className="file-warning">{f.message}</div>}
                 </div>
                 <span className={`state-tag ${f.status==='warning'?'warn':f.status==='error'?'error':''}`}>{f.status==='working'?'Reading':f.status==='done'?'Analyzed':f.status==='error'?'Problem':f.status==='warning'?'Review':'Ready'}</span>
-                <button className="btn icon small" aria-label={`Remove ${f.file.name}`} onClick={()=>removeFile(f.id)} disabled={f.status==='working'} data-testid={`button-remove-file-${f.id}`}><X size={14}/></button>
+                <button className="btn icon small" aria-label={`Remove source file ${f.file.name}; imported events remain`} onClick={()=>removeFile(f.id)} disabled={busy||f.status==='working'} data-testid={`button-remove-file-${f.id}`}><X size={14}/></button>
               </div>
               {!!f.unmatchedPhotos?.length&&<div className="unmatched-photos" data-testid={`unmatched-photos-${f.id}`}>
                 <div><strong>{f.unmatchedPhotos.length} photo{f.unmatchedPhotos.length===1?'':'s'} need an event assignment.</strong><span>Nothing has been attached automatically because the source did not identify a matching record.</span></div>
@@ -550,7 +551,7 @@ function EventModal({event,categories,onClose,onSave,onImages,title}:{event:Even
       <div className="field"><label htmlFor="ev-club">Club / society</label><input id="ev-club" value={draft.club} onChange={e=>change('club',e.target.value)} placeholder="Not found in source"/></div>
       <div className="field"><label htmlFor="ev-participants">Participants</label><input id="ev-participants" value={draft.participants} onChange={e=>change('participants',e.target.value)} placeholder="Not found in source"/></div>
       <div className="field"><label htmlFor="ev-team">Team size</label><input id="ev-team" value={draft.teamSize} onChange={e=>change('teamSize',e.target.value)} placeholder="Not found in source"/></div>
-      <div className="field"><label htmlFor="ev-category">Category</label><select id="ev-category" value={draft.category} onChange={e=>{setDraft(old=>({...old,category:e.target.value,classificationSource:'Manually assigned',needsReview:false}))}}>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+      <div className="field"><label htmlFor="ev-category">Category</label><select id="ev-category" value={draft.category} onChange={e=>{setDraft(old=>({...old,category:e.target.value,classificationSource:'Manually assigned',needsReview:false,confidence:1}))}}>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
     </div>
     <div className="section-head"><h3>Event photos</h3><div style={{display:'flex',gap:7}}>{draft.images.length>0&&<button className="btn small" onClick={()=>{setReplaceImages(true);imgRef.current?.click()}}>Replace all</button>}<button className="btn small" onClick={()=>{setReplaceImages(false);imgRef.current?.click()}}><ImagePlus size={13}/>Add photos</button></div><input ref={imgRef} type="file" accept="image/png,image/jpeg" multiple hidden onChange={async e=>{const list=e.target.files;const added=await onImages(list);setDraft(old=>({...old,images:replaceImages?added:[...old.images,...added]}));setReplaceImages(false);e.target.value=''}}/></div>
     {draft.images.length>0&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>{draft.images.map((img,i)=><div key={`${i}-${img.slice(0,30)}`} style={{position:'relative'}}><img src={img} alt={`Event image ${i+1}`} style={{width:74,height:66,objectFit:'cover',borderRadius:5,border:'1px solid #ddd'}}/><button className="btn icon small danger" aria-label={`Remove image ${i+1}`} onClick={()=>setDraft(old=>({...old,images:old.images.filter((_,j)=>j!==i)}))} style={{position:'absolute',right:2,top:2,background:'#fffefa',padding:3}}><X size={11}/></button></div>)}</div>}
