@@ -23,3 +23,28 @@ export function categoryDistribution(events: EventRecord[], categories: Category
     count: events.reduce((total, event) => total + Number(event.category === category.id), 0),
   }));
 }
+
+export function moveEventToCategory(
+  events: EventRecord[],
+  eventId: string,
+  categoryId: string,
+  beforeId?: string,
+): EventRecord[] {
+  const moved = events.find(event => event.id === eventId);
+  if (!moved) return events;
+
+  const target = events
+    .filter(event => event.category === categoryId && event.id !== eventId)
+    .sort((a, b) => a.order - b.order);
+  const index = beforeId ? target.findIndex(event => event.id === beforeId) : target.length;
+  target.splice(index < 0 ? target.length : index, 0, {
+    ...moved,
+    category: categoryId,
+    classificationSource: 'Manually assigned',
+    needsReview: false,
+    confidence: 1,
+  });
+
+  const others = events.filter(event => event.category !== categoryId && event.id !== eventId);
+  return [...others, ...target.map((event, order) => ({ ...event, category: categoryId, order }))];
+}

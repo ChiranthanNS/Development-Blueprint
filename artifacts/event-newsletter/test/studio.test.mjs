@@ -76,6 +76,30 @@ test('duplicate review and category totals use the live event register', () => {
   assert.deepEqual(distribution.map(item => item.count), [1, 1, 1, 0]);
 });
 
+test('moving an event updates only its category and preserves its record and image', () => {
+  const first = {
+    id: 'first', name: 'Campus workshop', description: 'A detailed source description.',
+    date: '12 December 2025', time: '', venue: '', organizer: '', department: '',
+    club: '', participants: '', teamSize: '', category: 'workshops',
+    images: ['data:image/png;base64,local-photo'], confidence: 0.4, score: 1,
+    classificationSource: 'Automatic keyword match', needsReview: true,
+    sourceFile: 'events.docx', order: 2,
+  };
+  const second = { ...first, id: 'second', name: 'Guest lecture', category: 'talks', order: 0 };
+  const unchanged = { ...first, id: 'unchanged', name: 'Club meetup', category: 'workshops', order: 0 };
+
+  const result = utils.moveEventToCategory([first, second, unchanged], 'first', 'talks');
+  const moved = result.find(item => item.id === 'first');
+  assert.equal(moved.category, 'talks');
+  assert.equal(moved.name, first.name);
+  assert.deepEqual(moved.images, first.images);
+  assert.equal(moved.classificationSource, 'Manually assigned');
+  assert.equal(moved.needsReview, false);
+  assert.equal(moved.confidence, 1);
+  assert.equal(result.find(item => item.id === 'unchanged').category, 'workshops');
+  assert.equal(result.findIndex(item => item.id === 'first') > result.findIndex(item => item.id === 'second'), true);
+});
+
 test('PDF text normalization preserves labels while replacing unsupported glyphs and control characters', () => {
   const source = '💡 Theme: College Automation\n🌐 Domains: Artificial Intelligence & Web Development\n📅 Dates: March 27ᵗʰ & 28ᵗʰ, 2026\n🛠 BEGIN-SOURCE-MARKER';
   assert.equal(
