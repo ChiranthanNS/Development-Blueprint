@@ -10,12 +10,18 @@ const pageHeight = 297;
 const margin = 14;
 const contentWidth = pageWidth - margin * 2;
 
-const cleanPdfText = (value: string) => value
+export const cleanPdfText = (value: string) => value
   .replace(/₹/g, 'INR ')
   .replace(/[“”]/g, '"')
   .replace(/[‘’]/g, "'")
   .replace(/[–—]/g, '-')
+  .replace(/ᵗʰ/g, 'th')
+  .replace(/\p{Extended_Pictographic}/gu, '')
+  .replace(/[\u200B-\u200D\uFEFF]/g, '')
+  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, ' ')
   .replace(/\u00a0/g, ' ')
+  .replace(/[ \t]*\n[ \t]*/g, '\n')
+  .replace(/[ \t]+/g, ' ')
   .trim();
 
 function bodyWithoutRepeatedTitle(name: string, description: string) {
@@ -43,7 +49,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     const lines = doc.splitTextToSize(cleanPdfText(text), width) as string[];
     return lines.length ? lines : [''];
   };
-  const drawImageContained = (data: string, x: number, y: number, maxWidth: number, maxHeight: number) => {
+  const drawImageContained = (data: string, x: number, y: number, maxWidth: number, maxHeight: number, label: string) => {
     try {
       const props = doc.getImageProperties(data);
       const scale = Math.min(maxWidth / props.width, maxHeight / props.height);
@@ -53,7 +59,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
       doc.addImage(data, format, x + (maxWidth - width) / 2, y + (maxHeight - height) / 2, width, height, undefined, 'FAST');
       return true;
     } catch {
-      return false;
+      throw new Error(`Unable to add the ${label} to the PDF. Check that it is a valid image.`);
     }
   };
   const drawMasthead = (section: string) => {
@@ -61,8 +67,8 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     doc.setLineWidth(0.55);
     doc.line(margin, 9, pageWidth - margin, 9);
     doc.line(margin, 11, pageWidth - margin, 11);
-    if (report.logo) drawImageContained(report.logo, margin + 2, 14, 18, 18);
-    if (report.departmentLogo) drawImageContained(report.departmentLogo, pageWidth - margin - 20, 14, 18, 18);
+    if (report.logo) drawImageContained(report.logo, margin + 2, 14, 18, 18, 'college logo');
+    if (report.departmentLogo) drawImageContained(report.departmentLogo, pageWidth - margin - 20, 14, 18, 18, 'department logo');
     const titleLines = wrap(section.toUpperCase(), 'times', 'bold', 13.5, contentWidth - 48);
     const headerY = titleLines.length > 1 ? 21 : 27;
     titleLines.forEach((line, index) => doc.text(line, pageWidth / 2, headerY + index * 5.2, { align: 'center' }));
@@ -113,6 +119,39 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     }
     return cursorY;
   };
+  const drawLongRecord = (categoryName: string, event: EventRecord, details: string, body: string) => {
+    addContentPage(`${categoryName} - Full record`);
+    let cursorY = 42;
+    cursorY = drawPanel('Event title', event.name || 'Untitled event', cursorY, { fontSize: 9.2, lineHeight: 4.2 });
+    if (details.trim()) cursorY = drawPanel('Event details', details, cursorY, { fontSize: 7.4, lineHeight: 3.6 });
+    if (body.trim()) cursorY = drawPanel('Description', body, cursorY, { fontSize: 8, lineHeight: 4 });
+
+    if (event.images.length) {
+      const columns = 4;
+      const gap = 3;
+      const cellWidth = (contentWidth - gap * (columns - 1)) / columns;
+      const imageHeight = 24;
+      const rowHeight = imageHeight + gap;
+      const rowsPerPage = Math.max(1, Math.floor((pageHeight - 17 - 44) / rowHeight));
+      const imagesPerPage = columns * rowsPerPage;
+      for (let start = 0; start < event.images.length; start += imagesPerPage) {
+        addContentPage(`${categoryName} - Event photos`);
+        const pageImages = event.images.slice(start, start + imagesPerPage);
+        pageImages.forEach((image, index) => {
+          const row = Math.floor(index / columns);
+          const column = index % columns;
+          const x = margin + column * (cellWidth + gap);
+          const imageY = 43 + row * rowHeight;
+          doc.setDrawColor(177, 173, 161);
+          doc.setLineWidth(0.25);
+          doc.roundedRect(x, imageY, cellWidth, imageHeight, 1, 1, 'S');
+          drawImageContained(image, x + 1, imageY + 1, cellWidth - 2, imageHeight - 2, `event photo for ${event.name || 'Untitled event'}`);
+        });
+        cursorY = 43 + Math.ceil(pageImages.length / columns) * rowHeight + 2;
+      }
+    }
+    return cursorY;
+  };
   const drawPageFrame = () => {
     doc.setDrawColor(112, 110, 101);
     doc.setLineWidth(0.3);
@@ -138,8 +177,8 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
   doc.setLineWidth(0.55);
   doc.line(margin, 9, pageWidth - margin, 9);
   doc.line(margin, 11, pageWidth - margin, 11);
-  if (report.logo) drawImageContained(report.logo, margin + 1, 14, 22, 22);
-  if (report.departmentLogo) drawImageContained(report.departmentLogo, pageWidth - margin - 23, 14, 22, 22);
+  if (report.logo) drawImageContained(report.logo, margin + 1, 14, 22, 22, 'college logo');
+  if (report.departmentLogo) drawImageContained(report.departmentLogo, pageWidth - margin - 23, 14, 22, 22, 'department logo');
   const institutionLines = wrap(report.institution || 'Department Newsletter', 'times', 'bold', 13.5, contentWidth - 58);
   institutionLines.forEach((line, index) => doc.text(line.toUpperCase(), pageWidth / 2, 19 + index * 5.5, { align: 'center' }));
   doc.setFont('times', 'bold');
@@ -152,7 +191,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
     doc.setDrawColor(...rule);
     doc.setLineWidth(0.8);
     doc.rect(margin + 1, coverY, contentWidth - 2, 68);
-    drawImageContained(report.coverImage, margin + 2, coverY + 1, contentWidth - 4, 66);
+    drawImageContained(report.coverImage, margin + 2, coverY + 1, contentWidth - 4, 66, 'cover photo');
     coverY += 73;
   } else {
     doc.setDrawColor(210, 205, 192);
@@ -279,6 +318,17 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
           return { event, titleLines, dateLines, bodyLines, imageColumns, imageRows, imageHeight, height };
         });
         const cardHeight = Math.max(55, ...rowMetrics.map(item => item.height));
+        if (cardHeight > pageHeight - 58) {
+          let overflowY = y;
+          for (const item of rowMetrics) {
+            const detail = item.event.date || '';
+            const body = bodyWithoutRepeatedTitle(item.event.name, item.event.description);
+            overflowY = drawLongRecord(category.name, item.event, detail, body);
+          }
+          y = overflowY;
+          index += columns;
+          continue;
+        }
         if (y + cardHeight > pageHeight - 16) {
           addContentPage(`${category.name} - Continued`);
           y = 42;
@@ -317,7 +367,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
               const imageGap = 1.5;
               const imageWidth = (cardWidth - padding * 2 - imageGap * (imagesInRow - 1)) / imagesInRow;
               const rowStart = x + padding + (cardWidth - padding * 2 - (imageWidth * imagesInRow + imageGap * (imagesInRow - 1))) / 2;
-              drawImageContained(item.event.images[imageIndex], rowStart + columnIndex * (imageWidth + imageGap), textY + rowIndex * (item.imageHeight + 1.5), imageWidth, item.imageHeight);
+              drawImageContained(item.event.images[imageIndex], rowStart + columnIndex * (imageWidth + imageGap), textY + rowIndex * (item.imageHeight + 1.5), imageWidth, item.imageHeight, `event photo for ${item.event.name || 'Untitled event'}`);
             }
           }
         });
@@ -342,6 +392,15 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
         });
         const maxDetailLines = Math.max(0, ...rowMetrics.map(item => item.detailLines.length));
         const cardHeight = Math.max(57, 42 + maxDetailLines * 3.2);
+        if (cardHeight > pageHeight - 58) {
+          let overflowY = y;
+          for (const item of rowMetrics) {
+            overflowY = drawLongRecord(category.name, item.event, item.event.date, item.detail);
+          }
+          y = overflowY;
+          index += columns;
+          continue;
+        }
         if (y + cardHeight > pageHeight - 16) {
           addContentPage(`${category.name} - Continued`);
           y = 42;
@@ -351,7 +410,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
           doc.setDrawColor(...rule);
           doc.setLineWidth(0.45);
           doc.roundedRect(x, y, cardWidth, cardHeight, 2.8, 2.8, 'S');
-          if (item.event.images[0]) drawImageContained(item.event.images[0], x + (cardWidth - 29) / 2, y + 4, 29, 31);
+          if (item.event.images[0]) drawImageContained(item.event.images[0], x + (cardWidth - 29) / 2, y + 4, 29, 31, `placement photo for ${item.event.name || 'Untitled event'}`);
           const titleY = y + 39;
           doc.setFont('times', 'bold');
           doc.setFontSize(7.2);
@@ -385,6 +444,10 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
       const imageGaps = Math.max(0, imageRows - 1) * 2.5;
       const cardHeight = padding + titleLines.length * 4 + (detailLines.length ? 2.5 + detailLines.length * 2.9 : 0) +
         (bodyLines.length ? 2.5 + bodyLines.length * 3.35 : 0) + (event.images.length ? 3.5 + imageRows * imageHeight + imageGaps : 0) + padding;
+      if (cardHeight > pageHeight - 58) {
+        y = drawLongRecord(category.name, event, details, body);
+        continue;
+      }
       if (y + cardHeight > pageHeight - 15) {
         addContentPage(`${category.name} - Continued`);
         y = 42;
@@ -425,7 +488,7 @@ export async function buildNewsletterPdf(report: ReportInfo, events: EventRecord
           const imageX = rowStartX + columnIndex * (rowCellWidth + gap);
           const maxImageWidth = Math.min(cellWidth, rowCellWidth);
           const imageY = textY + rowIndex * (imageHeight + 2.5);
-          drawImageContained(event.images[imageIndex], imageX, imageY, maxImageWidth, imageHeight);
+          drawImageContained(event.images[imageIndex], imageX, imageY, maxImageWidth, imageHeight, `event photo for ${event.name || 'Untitled event'}`);
         }
       }
       y += cardHeight + 3.5;

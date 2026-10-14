@@ -13,6 +13,7 @@ async function loadTypeScript(relativePath) {
 
 const extract = await loadTypeScript('../src/extract.ts');
 const utils = await loadTypeScript('../src/studio-utils.ts');
+const pdf = await loadTypeScript('../src/newsletter-pdf.ts');
 
 test('recognizes the structured table, carries month/type context, and keeps a photo-only row unassigned', () => {
   const html = `
@@ -73,4 +74,13 @@ test('duplicate review and category totals use the live event register', () => {
     { id: 'other', name: 'Other', keywords: [] },
   ]);
   assert.deepEqual(distribution.map(item => item.count), [1, 1, 1, 0]);
+});
+
+test('PDF text normalization preserves labels while replacing unsupported glyphs and control characters', () => {
+  const source = '💡 Theme: College Automation\n🌐 Domains: Artificial Intelligence & Web Development\n📅 Dates: March 27ᵗʰ & 28ᵗʰ, 2026\n🛠 BEGIN-SOURCE-MARKER';
+  assert.equal(
+    pdf.cleanPdfText(source),
+    'Theme: College Automation\nDomains: Artificial Intelligence & Web Development\nDates: March 27th & 28th, 2026\nBEGIN-SOURCE-MARKER',
+  );
+  assert.equal(pdf.cleanPdfText('Date:\u001d\u0000March 27th'), 'Date: March 27th');
 });

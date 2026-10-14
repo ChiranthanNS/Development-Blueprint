@@ -49,15 +49,16 @@ type Page = 'upload' | 'review' | 'dashboard' | 'report' | 'settings';
 type Modal = 'edit' | 'add' | 'delete' | 'clear' | 'new-project' | 'duplicate' | 'category-delete' | null;
 const uid = () => crypto.randomUUID();
 const fmtSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const countPhrase = (count: number, singular: string, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`;
 const diagnosticsSummary = (d: SourceDiagnostics) => [
-  `${d.importedRecords} records added`,
-  `${d.extractedPhotos} photos extracted`,
-  `${d.associatedPhotos} photos matched`,
-  `${d.recordsNeedingReview} records need review`,
-  d.duplicateCandidates ? `${d.duplicateCandidates} duplicate candidates pending` : '',
-  d.unassignedPhotos ? `${d.unassignedPhotos} photos need assignment` : '',
-  d.unsupportedImages ? `${d.unsupportedImages} unsupported images` : '',
-  d.failedImages ? `${d.failedImages} image extractions failed` : '',
+  `${countPhrase(d.importedRecords, 'record')} added`,
+  `${countPhrase(d.extractedPhotos, 'photo')} extracted`,
+  `${countPhrase(d.associatedPhotos, 'photo')} matched`,
+  `${countPhrase(d.recordsNeedingReview, 'record')} ${d.recordsNeedingReview === 1 ? 'needs' : 'need'} review`,
+  d.duplicateCandidates ? `${countPhrase(d.duplicateCandidates, 'duplicate candidate')} pending` : '',
+  d.unassignedPhotos ? `${countPhrase(d.unassignedPhotos, 'photo')} ${d.unassignedPhotos === 1 ? 'needs' : 'need'} assignment` : '',
+  d.unsupportedImages ? `${countPhrase(d.unsupportedImages, 'unsupported image')}` : '',
+  d.failedImages ? `${countPhrase(d.failedImages, 'image extraction')} failed` : '',
 ].filter(Boolean).join(' · ');
 const safeText = (x: string) => x || 'Not provided';
 const filenamePart = (value: string) => value.trim().replace(/[–—]/g, '-').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
@@ -195,7 +196,7 @@ function App() {
           failedImages: result.failedImages || 0,
         };
         if (!parsed.length) importWarning = [importWarning, 'No clear event record was detected. No event facts were added.'].filter(Boolean).join(' ');
-        if (unmatchedPhotos.length) importWarning = [importWarning, `${unmatchedPhotos.length} extracted photo${unmatchedPhotos.length === 1 ? '' : 's'} need manual event assignment.`].filter(Boolean).join(' ');
+        if (unmatchedPhotos.length) importWarning = [importWarning, `${countPhrase(unmatchedPhotos.length, 'extracted photo')} ${unmatchedPhotos.length === 1 ? 'needs' : 'need'} manual event assignment.`].filter(Boolean).join(' ');
         const status = importWarning || duplicates.length || !parsed.length ? 'warning' : 'done';
         setFiles(old => old.map(f => f.id === sf.id
           ? { ...f, status, message: importWarning || '', diagnostics, unmatchedPhotos }
@@ -241,7 +242,8 @@ function App() {
   };
   const attachUnmatchedPhotos = (fileId: string) => {
     const source = files.find(file => file.id === fileId);
-    const targetId = photoTargetByFile[fileId] || events[0]?.id;
+    const selectedTarget = photoTargetByFile[fileId];
+    const targetId = events.some(event => event.id === selectedTarget) ? selectedTarget : events[0]?.id;
     if (!source?.unmatchedPhotos?.length || !targetId) {
       notify('Add an event and choose it before attaching these photos.');
       return;
@@ -257,7 +259,7 @@ function App() {
             associatedPhotos: file.diagnostics.associatedPhotos + photos.length,
             unassignedPhotos: 0,
           } : undefined,
-          message: file.message?.replace(/\s*\d+ extracted photos? need manual event assignment\./i, ''),
+          message: file.message?.replace(/\s*\d+ extracted photos? needs? manual event assignment\./i, ''),
           status: file.diagnostics?.unsupportedImages || file.diagnostics?.failedImages ? 'warning' : 'done',
         }
       : file));
@@ -366,8 +368,10 @@ function App() {
       setPdfUrl(URL.createObjectURL(blob));
       setPage('report');
       notify('Newsletter PDF preview is ready.');
-    } catch {
-      notify('PDF generation failed. Check the photos and publication details, then try again.');
+    } catch (error) {
+      notify(error instanceof Error && error.message.startsWith('Unable to add the ')
+        ? error.message
+        : 'PDF generation failed. Check the photos and publication details, then try again.');
     }
   };
 
@@ -415,10 +419,10 @@ function App() {
                 <div><strong>{f.unmatchedPhotos.length} photo{f.unmatchedPhotos.length===1?'':'s'} need an event assignment.</strong><span>Nothing has been attached automatically because the source did not identify a matching record.</span></div>
                 <div className="unmatched-photo-controls">
                   {events.length
-                    ? <><label className="sr-only" htmlFor={`photo-target-${f.id}`}>Choose the event for these photos</label><select id={`photo-target-${f.id}`} value={photoTargetByFile[f.id]||events[0]?.id||''} onChange={e=>setPhotoTargetByFile(old=>({...old,[f.id]:e.target.value}))} aria-label="Choose event for unmatched photos">
+                    ? <><label className="sr-only" htmlFor={`photo-target-${f.id}`}>Choose the event for these photos</label><select id={`photo-target-${f.id}`} value={events.some(event=>event.id===photoTargetByFile[f.id])?photoTargetByFile[f.id]:events[0]?.id||''} onChange={e=>setPhotoTargetByFile(old=>({...old,[f.id]:e.target.value}))} aria-label="Choose event for unmatched photos">
                         <option value="" disabled>Select an event</option>
                         {events.map(event=><option key={event.id} value={event.id}>{event.name||'Untitled event'} · {categories.find(category=>category.id===event.category)?.name||'Uncategorized'}</option>)}
-                      </select><button className="btn small" disabled={!photoTargetByFile[f.id]&&!events[0]} onClick={()=>attachUnmatchedPhotos(f.id)}>Attach to event</button></>
+                      </select><button className="btn small" disabled={!events.length} onClick={()=>attachUnmatchedPhotos(f.id)}>Attach to event</button></>
                     : <button className="btn small" onClick={()=>{setPage('review');addBlankEvent()}}>Add an event first</button>}
                 </div>
                 <div className="unmatched-photo-thumbs">{f.unmatchedPhotos.map((image,index)=><img src={image} alt={`Unassigned source photo ${index+1}`} key={`${f.id}-unmatched-${index}`}/>)}</div>
