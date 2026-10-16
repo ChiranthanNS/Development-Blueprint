@@ -6,6 +6,8 @@ Client-side event organizer: upload local source files, review categorized event
 
 - Install dependencies at the repository root with `pnpm install`.
 - The Replit preview is served by the managed artifact workflow `artifacts/event-newsletter: web`.
+- Open the Event Newsletter Studio preview at `/`. If stopped, run `artifacts/event-newsletter: web`; the API Server and Canvas workflows are not required for this app.
+- No API keys, database, or external service setup is required.
 - For local development: `PORT=5173 BASE_PATH=/ pnpm --filter @workspace/event-newsletter run dev`.
 - Typecheck: `pnpm --filter @workspace/event-newsletter run typecheck`.
 - Tests: `pnpm --filter @workspace/event-newsletter run test` (parsing, duplicate review, category movement, and generated PDF checks).
